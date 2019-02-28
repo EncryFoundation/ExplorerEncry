@@ -1,9 +1,9 @@
 package encry
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.stream.ActorMaterializer
 import encry.settings.ExplorerSettings
-
+import encry.parser._
 import scala.concurrent.ExecutionContextExecutor
 
 object ExplorerApp extends App {
@@ -14,4 +14,7 @@ object ExplorerApp extends App {
 
   val settings = ExplorerSettings.read
 
+  settings.parseSettings.nodes.foreach(node =>
+    system.actorOf(Props(new NodeParser(node)), s"ParserFor${node.getHostName}")
+  )
 }
