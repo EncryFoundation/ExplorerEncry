@@ -2,4 +2,5 @@ package encry.settings
 
 import java.net.InetSocketAddress
 
-case class ParseSettings(nodes: List[InetSocketAddress])
+case class ParseSettings(nodes: List[InetSocketAddress],
+                         databaseSettings: DatabaseSettings)

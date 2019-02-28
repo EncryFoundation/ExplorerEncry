@@ -12,6 +12,13 @@ val akkaHttpVersion = "10.0.9"
 val doobieVersion = "0.5.2"
 val logbackVersion = "1.2.3"
 
+val databaseDependencies = Seq(
+  "org.tpolecat" %% "doobie-core" % doobieVersion,
+  "org.tpolecat" %% "doobie-postgres" % doobieVersion,
+  "org.tpolecat" %% "doobie-specs2" % doobieVersion,
+  "org.tpolecat" %% "doobie-hikari" % doobieVersion
+)
+
 val apiDependencies = Seq(
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
 )
@@ -28,7 +35,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.iheart" %% "ficus" % "1.4.2",
-) ++ apiDependencies ++ loggingDependencies
+) ++ apiDependencies ++ loggingDependencies ++ databaseDependencies
 
 fork := true
 
