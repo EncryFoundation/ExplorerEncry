@@ -1,5 +1,7 @@
 package encry.blockchain.modifiers
 
+import io.circe.{Decoder, HCursor}
+
 case class Header(version: String,
                   parentId: String,
                   adProofsRoot: String,
@@ -10,3 +12,4 @@ case class Header(version: String,
                   nonce: Long,
                   difficulty: Long,
                   equihashSolution: List[Int])
+

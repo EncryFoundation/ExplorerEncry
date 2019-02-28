@@ -11,6 +11,7 @@ val akkaVersion = "2.5.13"
 val akkaHttpVersion = "10.0.9"
 val doobieVersion = "0.5.2"
 val logbackVersion = "1.2.3"
+val circeVersion = "0.9.2"
 
 val databaseDependencies = Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
@@ -25,8 +26,13 @@ val apiDependencies = Seq(
 
 val loggingDependencies = Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
+  "org.encry" %% "encry-common" % "0.8.3",
+  "io.circe" %% "circe-core" % circeVersion,
+  "io.circe" %% "circe-parser" % circeVersion,
+  "io.circe" %% "circe-generic" % circeVersion,
   "ch.qos.logback" % "logback-classic" % logbackVersion,
   "ch.qos.logback" % "logback-core" % logbackVersion,
+  "org.scalaj" %% "scalaj-http" % "2.4.1",
   "net.logstash.logback" % "logstash-logback-encoder" % "1.0",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
 )
