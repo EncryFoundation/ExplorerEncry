@@ -16,7 +16,6 @@ case class InfoRoute(nodeName: String,
                      peersCount: Int,
                      knownPeers: List[String],
                      storage: String,
-                     uptime: Long,
                      isConnectedWithKnownPeers: Boolean){
 
   override def toString: String =
@@ -30,7 +29,7 @@ case class InfoRoute(nodeName: String,
 object InfoRoute {
 
   val empty =
-    InfoRoute("", "", 0, 0, "", "", "", 0L, 0L, "", isMining = false, 0, List.empty, "", 0, isConnectedWithKnownPeers = false)
+    InfoRoute("", "", 0, 0, "", "", "", 0L, 0L, "", isMining = false, 0, List.empty, "", isConnectedWithKnownPeers = false)
 
   implicit val decoder: Decoder[InfoRoute] = (c: HCursor) => for {
     nodeName <- c.downField("name").as[String]
@@ -47,7 +46,6 @@ object InfoRoute {
     peersCount <- c.downField("peersCount").as[Int]
     knownPeers <- c.downField("knownPeers").as[List[String]]
     storage <- c.downField("storage").as[String]
-    uptime <- c.downField("uptime").as[Long]
     isConnectedWithKnownPeers <- c.downField("isConnectedWithKnownPeers").as[Boolean]
   } yield InfoRoute(
     nodeName,
@@ -64,7 +62,6 @@ object InfoRoute {
     peersCount,
     knownPeers,
     storage,
-    uptime,
     isConnectedWithKnownPeers
   )
 }

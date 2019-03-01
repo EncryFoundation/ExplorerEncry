@@ -5,8 +5,10 @@ import java.net.InetSocketAddress
 import scala.concurrent.duration._
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
+import encry.blockchain.modifiers.Header
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.parser.NodeParser.PingNode
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
 
@@ -14,6 +16,7 @@ class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
 
   val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
+  var currentNodeBestHeader: Header = Header.empty
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -36,6 +39,7 @@ class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
       }
     case _ =>
   }
+
 }
 
 object NodeParser {
