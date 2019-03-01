@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import scala.concurrent.duration._
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
-import encry.blockchain.modifiers.Header
+import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.parser.NodeParser.PingNode
 
@@ -16,7 +16,7 @@ class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
 
   val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
-  var currentNodeBestHeader: Header = Header.empty
+  var currentNodeBestBlock: Block = Block.empty
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -35,9 +35,20 @@ class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
         else {
           logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
           currentNodeInfo = newInfoRoute
+          updateBestBlock()
         }
       }
     case _ =>
+  }
+
+  //side effect
+  def updateBestBlock(): Unit = {
+    parserRequests.getBlock(currentNodeInfo.bestFullHeaderId) match {
+      case Left(err) => logger.info(s"Err: $err during update best block on parser $node")
+      case Right(block) =>
+        currentNodeBestBlock = block
+        logger.info(s"Successfully update best block on $node to ${block.header.id}")
+    }
   }
 
 }

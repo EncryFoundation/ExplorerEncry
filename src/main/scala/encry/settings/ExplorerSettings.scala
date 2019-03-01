@@ -7,7 +7,8 @@ import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
 
-case class ExplorerSettings(parseSettings: ParseSettings)
+case class ExplorerSettings(parseSettings: ParseSettings,
+                            databaseSettings: DatabaseSettings)
 
 object ExplorerSettings {
 

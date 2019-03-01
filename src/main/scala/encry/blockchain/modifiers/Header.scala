@@ -1,9 +1,9 @@
 package encry.blockchain.modifiers
 
 import io.circe.{Decoder, HCursor}
-import org.encryfoundation.common.Algos
 
-case class Header(version: Byte,
+case class Header(id: String,
+                  version: Byte,
                   parentId: String,
                   adProofsRoot: String,
                   stateRoot: String,
@@ -16,11 +16,11 @@ case class Header(version: Byte,
 
 object Header {
   
-  val empty: Header = Header(-1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty)
-
+  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty)
 
   implicit val jsonDecoder: Decoder[Header] = (c: HCursor) =>
     for {
+      id               <- c.downField("id").as[String]
       version          <- c.downField("version").as[Byte]
       parentId         <- c.downField("parentId").as[String]
       adProofsRoot     <- c.downField("adProofsRoot").as[String]
@@ -32,6 +32,7 @@ object Header {
       difficulty       <- c.downField("difficulty").as[BigInt]
       equihashSolution <- c.downField("equihashSolution").as[List[Int]]
     } yield Header(
+      id,
       version,
       parentId,
       adProofsRoot,

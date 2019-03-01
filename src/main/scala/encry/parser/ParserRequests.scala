@@ -7,6 +7,8 @@ import io.circe.{Decoder, Error}
 import scalaj.http._
 import InfoRoute._
 import com.typesafe.scalalogging.StrictLogging
+import encry.blockchain.modifiers.Block._
+import encry.blockchain.modifiers.Block
 
 import scala.io.Source
 
@@ -21,6 +23,8 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
   } yield elem
 
   def getInfo: Either[Error, InfoRoute] =
-    makeGetRequest(s"http://${node.getAddress.getHostAddress}:${node.getPort}/info")
+    makeGetRequest[InfoRoute](s"http://${node.getAddress.getHostAddress}:${node.getPort}/info")
 
+  def getBlock(blockId: String): Either[Error, Block] =
+    makeGetRequest[Block](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/$blockId")
 }
