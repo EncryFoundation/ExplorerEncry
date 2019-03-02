@@ -3,20 +3,23 @@ package encry.parser
 import java.net.InetSocketAddress
 
 import scala.concurrent.duration._
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.parser.NodeParser.PingNode
+import encry.database.DBActor.ActivateNodeAndGetNodeInfo
+import encry.parser.NodeParser.{PingNode, SetNodeParams}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
 
-class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
+class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: ActorRef) extends Actor with StrictLogging {
 
   val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
   var currentNodeBestBlock: Block = Block.empty
+  var currentNodeBestBlockId: String = ""
+  var currentBestBlockHeight: Int = -1
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -26,7 +29,23 @@ class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
     )(self ! PingNode)
   }
 
-  override def receive: Receive = {
+  override def receive: Receive = prepareCycle
+
+  def prepareCycle: Receive = {
+    case PingNode =>
+      parserRequests.getInfo match {
+        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
+        case Right(infoRoute) =>
+          logger.info(s"Get node info on $node during prepare status")
+          dbActor ! ActivateNodeAndGetNodeInfo(node, infoRoute)
+      }
+    case SetNodeParams(bestBlock, bestHeight) =>
+      currentNodeBestBlockId = bestBlock
+      currentBestBlockHeight = bestHeight
+      context.become(workingCycle)
+  }
+
+  def workingCycle: Receive = {
     case PingNode =>
       parserRequests.getInfo match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
@@ -56,5 +75,7 @@ class NodeParser(node: InetSocketAddress) extends Actor with StrictLogging {
 object NodeParser {
 
   case object PingNode
+
+  case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
 }
 

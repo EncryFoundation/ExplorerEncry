@@ -1,5 +1,7 @@
 package encry.database
 
+import java.net.InetSocketAddress
+
 import com.typesafe.scalalogging.StrictLogging
 import encry.settings.DatabaseSettings
 import com.zaxxer.hikari.HikariDataSource
@@ -8,15 +10,21 @@ import cats.effect.IO
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.hikari.HikariTransactor
-import scala.concurrent.Future
+import encry.blockchain.nodeRoutes.InfoRoute
+
+import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext.Implicits.global
+import Queries._
+import encry.database.data.Node
+
 
 case class DBService(settings: DatabaseSettings) extends StrictLogging {
 
   private lazy val dataSource = new HikariDataSource
 
-  dataSource.setJdbcUrl(settings.host + "?loggerLevel=OFF")
+  dataSource.setJdbcUrl(settings.host)
   dataSource.setUsername(settings.user)
   dataSource.setPassword(settings.password)
   dataSource.setMaximumPoolSize(settings.maxPoolSize)
@@ -26,6 +34,22 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
   def shutdown(): Future[Unit] = {
     logger.info("Shutting down dbService")
     pgTransactor.shutdown.unsafeToFuture
+  }
+
+  def getNodeInfo(addr: InetSocketAddress): Future[Option[Node]] = {
+    runAsync(nodeInfoQuery(addr), "nodeInfo")
+  }
+
+  def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Int] =
+    runAsync(insertNode(addr, infoRoute), "activateNode")
+
+  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Node]] = {
+    val res = Await.result(getNodeInfo(addr), 3.minutes)
+    res match {
+      case Some(info) => Future.successful(Some(info))
+      case None => activateNode(addr, infoRoute)
+        Future.successful(Some(Node.empty(addr)))
+    }
   }
 
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
