@@ -27,4 +27,8 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
 
   def getBlock(blockId: String): Either[Error, Block] =
     makeGetRequest[Block](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/$blockId")
+
+  def getBlocksAtHeight(height: Int): Either[Error, List[String]] = {
+    makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/at/$height")
+  }
 }

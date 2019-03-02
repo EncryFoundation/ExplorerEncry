@@ -53,6 +53,8 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
           logger.info(s"info route on node $node don't change")
         else {
           logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
+          val newHeight = newInfoRoute.fullHeight
+          recoverNodeChain(currentNodeInfo.fullHeight, newHeight)
           currentNodeInfo = newInfoRoute
           updateBestBlock()
         }
@@ -70,6 +72,16 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
     }
   }
 
+  def recoverNodeChain(start: Int, end: Int): Unit = {
+    (start to end).foreach{ height =>
+      val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
+        case Left(err) => logger.info(s"Err: $err during get block at height $height")
+          List.empty
+        case Right(blocks) => blocks
+      }
+      logger.info(s"Blocks at height $height: ${blocksAtHeight.mkString(",")}")
+    }
+  }
 }
 
 object NodeParser {

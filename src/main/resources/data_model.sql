@@ -24,7 +24,7 @@ CREATE TABLE headers(
   feesTotal BIGINT NOT NULL,
   txsSize BIGINT NOT NULL,
   block_ad_proofs TEXT,
-  nodes INT ARRAY NOT NULL
+  nodes VARCHAR(128) ARRAY NOT NULL
 );
 
 CREATE INDEX height_index ON headers (height);
