@@ -11,12 +11,13 @@ case class Header(id: String,
                   timestamp: Long,
                   height: Int,
                   nonce: Long,
-                  difficulty: BigInt,
-                  equihashSolution: List[Int])
+                  difficulty: Long,
+                  equihashSolution: List[Int],
+                  nodes: List[String])
 
 object Header {
-  
-  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty)
+
+  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty, List.empty)
 
   implicit val jsonDecoder: Decoder[Header] = (c: HCursor) =>
     for {
@@ -29,7 +30,7 @@ object Header {
       timestamp        <- c.downField("timestamp").as[Long]
       height           <- c.downField("height").as[Int]
       nonce            <- c.downField("nonce").as[Long]
-      difficulty       <- c.downField("difficulty").as[BigInt]
+      difficulty       <- c.downField("difficulty").as[Long]
       equihashSolution <- c.downField("equihashSolution").as[List[Int]]
     } yield Header(
       id,
@@ -42,7 +43,8 @@ object Header {
       height,
       nonce,
       difficulty,
-      equihashSolution
+      equihashSolution,
+      List.empty
     )
 }
 

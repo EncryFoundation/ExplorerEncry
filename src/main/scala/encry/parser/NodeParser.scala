@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.ActivateNodeAndGetNodeInfo
-import encry.parser.NodeParser.{PingNode, SetNodeParams}
+import encry.parser.NodeParser.{BlockFromNode, PingNode, SetNodeParams}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
@@ -79,7 +79,12 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
           List.empty
         case Right(blocks) => blocks
       }
-      logger.info(s"Blocks at height $height: ${blocksAtHeight.mkString(",")}")
+      blocksAtHeight.foreach(blockId =>
+        parserRequests.getBlock(blockId) match {
+          case Left(err) => logger.info(s"Error during getting block $blockId")
+          case Right(block) => dbActor ! BlockFromNode(block, node)
+        }
+      )
     }
   }
 }
@@ -89,5 +94,7 @@ object NodeParser {
   case object PingNode
 
   case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
+
+  case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress)
 }
 

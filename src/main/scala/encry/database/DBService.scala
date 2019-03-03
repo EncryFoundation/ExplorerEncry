@@ -17,6 +17,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext.Implicits.global
 import Queries._
+import encry.blockchain.modifiers.Block
 import encry.database.data.Node
 
 
@@ -51,6 +52,9 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
         Future.successful(Some(Node.empty(addr)))
     }
   }
+
+  def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress): Future[Int] =
+    runAsync(insertHeaderQuery(block.header, nodeAddr), "blockInsert")
 
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
     (for {

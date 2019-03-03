@@ -7,24 +7,17 @@ CREATE TABLE nodes(
 
 CREATE TABLE headers(
   id VARCHAR(64) PRIMARY KEY,
-  parent_id VARCHAR(64) NOT NULL,
   version SMALLINT NOT NULL,
-  height INTEGER NOT NULL,
+  parent_id VARCHAR(64) NOT NULL,
   adProofsRoot VARCHAR(64) NOT NULL,
   stateRoot VARCHAR(66) NOT NULL,
   transactionsRoot VARCHAR(64) NOT NULL,
+  timestamp BIGINT NOT NULL,
+  height INTEGER NOT NULL,
   nonce BIGINT NOT NULL,
   difficulty BIGINT NOT NULL,
-  block_size BIGINT NOT NULL,
   equihashSolution INTEGER ARRAY NOT NULL,
-  adProofs VARCHAR DEFAULT '',
-  txQty BIGINT NOT NULL DEFAULT 0,
-  minerAddress VARCHAR NOT NULL,
-  minerReward BIGINT NOT NULL,
-  feesTotal BIGINT NOT NULL,
-  txsSize BIGINT NOT NULL,
-  block_ad_proofs TEXT,
-  nodes VARCHAR(128) ARRAY NOT NULL
+  nodes VARCHAR(256) ARRAY NOT NULL
 );
 
 CREATE INDEX height_index ON headers (height);
