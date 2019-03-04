@@ -10,7 +10,8 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
 
   override def preStart(): Unit = {
     settings.nodes.foreach(node =>
-      system.actorOf(Props(new NodeParser(node, self, dbActor)), s"ParserFor${node.getHostName}")
+      system.actorOf(Props(new NodeParser(node, self, dbActor)).withDispatcher("parser-dispatcher"),
+        s"ParserFor${node.getHostName}")
     )
   }
 

@@ -40,13 +40,22 @@ CREATE TABLE transactions(
 CREATE INDEX block_id_index ON transactions (blockId);
 
 CREATE TABLE inputs(
-  id VARCHAR(64) PRIMARY KEY,
+  bxId VARCHAR(64) PRIMARY KEY,
   txId VARCHAR(64) REFERENCES transactions (id),
-  contract TEXT NOT NULL,
-  proofs VARCHAR NOT NULL
+  contract VARCHAR(1024) NOT NULL,
+  proofs VARCHAR(1024) NOT NULL
 );
 
 CREATE INDEX tx_id_inputs_index ON inputs (txId);
+
+CREATE TABLE inputsToNodes(
+  inputId VARCHAR(64) REFERENCES inputs (bxId),
+  nodeIp VARCHAR(128) REFERENCES nodes (ip)
+);
+
+CREATE INDEX inputId_inputsToNodes_index ON inputsToNodes (inputId);
+
+CREATE INDEX nodeIp_inputsToNodes_index ON inputsToNodes (nodeIp);
 
 CREATE TABLE accounts(
   contractHash VARCHAR(64) PRIMARY KEY
@@ -69,3 +78,8 @@ CREATE TABLE outputs(
 CREATE INDEX txId_outputs_index ON outputs (txId);
 CREATE INDEX coinId_outputs_index ON outputs (coinId);
 CREATE INDEX contractHash_outputs_index ON outputs (contractHash);
+
+CREATE TABLE outputsToNodes(
+  outputId VARCHAR(64) REFERENCES outputs (id),
+  nodeIp VARCHAR(128) REFERENCES nodes (ip)
+);

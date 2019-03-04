@@ -81,7 +81,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
       }
       blocksAtHeight.foreach(blockId =>
         parserRequests.getBlock(blockId) match {
-          case Left(err) => logger.info(s"Error during getting block $blockId")
+          case Left(err) => logger.info(s"Error during getting block $blockId: ${err.getMessage}")
           case Right(block) => dbActor ! BlockFromNode(block, node)
         }
       )

@@ -1,7 +1,6 @@
 package encry.database
 
 import java.net.InetSocketAddress
-
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import doobie.free.connection.ConnectionIO
@@ -10,7 +9,7 @@ import doobie.postgres.implicits._
 import doobie.implicits._
 import encry.blockchain.modifiers.{Block, Header, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.data.{DBTransaction, HeaderToNode, Node}
+import encry.database.data._
 
 object Queries extends StrictLogging {
 
@@ -18,7 +17,13 @@ object Queries extends StrictLogging {
     header <- insertHeaderQuery(block.header)
     nodeToHeader <- insertNodeToHeader(block.header, node)
     txs <- insertTransactionsQuery(block)
-  } yield header + nodeToHeader + txs
+    inputs <- insertInputsQuery(block.getDBInputs)
+    inputsToNode <- insertInputToNodeQuery(block.getDBInputs, node)
+    tokens <- insertTokens(block.getDbOutputs)
+    accounts <- insertAccounts(block.getDbOutputs)
+    outputs <- insertOutputsQuery(block.getDbOutputs)
+    outputsToNode <- insertOutputToNodeQuery(block.getDbOutputs, node)
+  } yield header + nodeToHeader + txs + inputs + inputsToNode + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
     val test = addr.getAddress.getHostAddress
@@ -38,7 +43,7 @@ object Queries extends StrictLogging {
       s"""
         |INSERT INTO public.headers (id, version, parent_id, adProofsRoot, stateRoot, transactionsRoot, timestamp, height, nonce,
         |       difficulty, equihashSolution)
-        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[Header](query).run(header)
   }
@@ -53,12 +58,70 @@ object Queries extends StrictLogging {
     Update[DBTransaction](query).updateMany(txs)
   }
 
+  private def insertInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
+    val query: String =
+      """
+        |INSERT INTO public.inputs (bxId, txId, contract, proofs)
+        |VALUES (?, ?, ?, ?)
+        |""".stripMargin
+    Update[DBInput](query).updateMany(inputs)
+  }
+
+  private def insertInputToNodeQuery(inputs: List[DBInput], node: InetSocketAddress): ConnectionIO[Int] = {
+    val inputsToNodes = inputs.map(input => InputToNode(input, node))
+    val query: String =
+      """
+        |INSERT INTO public.inputsToNodes (inputId, nodeIp)
+        |VALUES (?, ?) ON CONFLICT DO NOTHING;
+        |""".stripMargin
+    Update[InputToNode](query).updateMany(inputsToNodes)
+  }
+
+  private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
+    val query: String =
+      """
+        |INSERT INTO public.outputs (id, txId, monetaryValue, coinId, contractHash, data, isActive)
+        |VALUES (?, ?, ?, ?, ?, ?, ?)
+        |""".stripMargin
+    Update[DBOutput](query).updateMany(outputs)
+  }
+
+  private def insertTokens(outputs: List[DBOutput]): ConnectionIO[Int] = {
+    val tokens = outputs.map(output => Token(output.coinId))
+    val query: String =
+      """
+        |INSERT INTO public.tokens (id)
+        |VALUES (?) ON CONFLICT DO NOTHING;
+        |""".stripMargin
+    Update[Token](query).updateMany(tokens)
+  }
+
+  private def insertAccounts(outputs: List[DBOutput]): ConnectionIO[Int] = {
+    val accounts = outputs.map(output => Account(output.contractHash))
+    val query: String =
+      """
+        |INSERT INTO public.accounts (contractHash)
+        |VALUES (?) ON CONFLICT DO NOTHING;
+        |""".stripMargin
+    Update[Account](query).updateMany(accounts)
+  }
+
+  private def insertOutputToNodeQuery(outputs: List[DBOutput], node: InetSocketAddress): ConnectionIO[Int] = {
+    val outputsToNodes = outputs.map(output => data.OutputToNode(output.id, node.getAddress.getHostAddress))
+    val query: String =
+      """
+        |INSERT INTO public.outputsToNodes (outputId, nodeIp)
+        |VALUES (?, ?) ON CONFLICT DO NOTHING;
+        |""".stripMargin
+    Update[OutputToNode](query).updateMany(outputsToNodes)
+  }
+
   def insertNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
     val headerToNode = HeaderToNode(header.id, addr.getAddress.getHostAddress)
     val query: String =
       s"""
          |INSERT INTO public.headerToNode (id, nodeIp)
-         |VALUES(?, ?)
+         |VALUES(?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderToNode](query).run(headerToNode)
   }
