@@ -16,9 +16,15 @@ CREATE TABLE headers(
   height INTEGER NOT NULL,
   nonce BIGINT NOT NULL,
   difficulty BIGINT NOT NULL,
-  equihashSolution INTEGER ARRAY NOT NULL,
-  nodes VARCHAR(256) ARRAY NOT NULL
+  equihashSolution INTEGER ARRAY NOT NULL
 );
+
+CREATE TABLE headerToNode (
+  id VARCHAR(64) REFERENCES headers (id),
+  nodeIp VARCHAR(128) REFERENCES nodes (ip)
+);
+
+CREATE INDEX header_id_to_node_index ON headerToNode (id);
 
 CREATE INDEX height_index ON headers (height);
 
@@ -27,6 +33,7 @@ CREATE TABLE transactions(
   fee BIGINT NOT NULL,
   blockId VARCHAR(64) REFERENCES headers (id),
   coinbase BOOLEAN NOT NULL,
+  timestamp BIGINT NOT NULL,
   proof TEXT
 );
 

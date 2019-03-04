@@ -8,11 +8,17 @@ import doobie.free.connection.ConnectionIO
 import doobie.util.update.Update
 import doobie.postgres.implicits._
 import doobie.implicits._
-import encry.blockchain.modifiers.Header
+import encry.blockchain.modifiers.{Block, Header, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.data.Node
+import encry.database.data.{DBTransaction, HeaderToNode, Node}
 
 object Queries extends StrictLogging {
+
+  def proccessBlock(block: Block, node: InetSocketAddress): ConnectionIO[Int] = for {
+    header <- insertHeaderQuery(block.header)
+    nodeToHeader <- insertNodeToHeader(block.header, node)
+    txs <- insertTransactionsQuery(block)
+  } yield header + nodeToHeader + txs
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
     val test = addr.getAddress.getHostAddress
@@ -27,25 +33,33 @@ object Queries extends StrictLogging {
     Update[Node](query).run(nodeIns)
   }
 
-  //id: String,
-  //                  version: Byte,
-  //                  parentId: String,
-  //                  adProofsRoot: String,
-  //                  stateRoot: String,
-  //                  transactionsRoot: String,
-  //                  timestamp: Long,
-  //                  height: Int,
-  //                  nonce: Long,
-  //                  difficulty: BigInt,
-  //                  equihashSolution: Array[Int]
-
-  def insertHeaderQuery(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
+  def insertHeaderQuery(header: Header): ConnectionIO[Int] = {
     val query: String =
       s"""
         |INSERT INTO public.headers (id, version, parent_id, adProofsRoot, stateRoot, transactionsRoot, timestamp, height, nonce,
-        |       difficulty, equihashSolution, nodes)
-        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        |       difficulty, equihashSolution)
+        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """.stripMargin
-    Update[Header](query).run(header.copy(nodes = List(addr.getAddress.getHostAddress)))
+    Update[Header](query).run(header)
+  }
+
+  private def insertTransactionsQuery(block: Block): ConnectionIO[Int] = {
+    val txs: List[DBTransaction] = block.payload.txs.map(tx => DBTransaction(tx, block.header.id))
+    val query: String =
+      """
+        |INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId)
+        |VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+        |""".stripMargin
+    Update[DBTransaction](query).updateMany(txs)
+  }
+
+  def insertNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
+    val headerToNode = HeaderToNode(header.id, addr.getAddress.getHostAddress)
+    val query: String =
+      s"""
+         |INSERT INTO public.headerToNode (id, nodeIp)
+         |VALUES(?, ?)
+      """.stripMargin
+    Update[HeaderToNode](query).run(headerToNode)
   }
 }

@@ -54,7 +54,7 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
   }
 
   def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress): Future[Int] =
-    runAsync(insertHeaderQuery(block.header, nodeAddr), "blockInsert")
+    runAsync(proccessBlock(block, nodeAddr), "blockInsert")
 
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
     (for {

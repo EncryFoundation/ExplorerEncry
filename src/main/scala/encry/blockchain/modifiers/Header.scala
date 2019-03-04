@@ -12,12 +12,11 @@ case class Header(id: String,
                   height: Int,
                   nonce: Long,
                   difficulty: Long,
-                  equihashSolution: List[Int],
-                  nodes: List[String])
+                  equihashSolution: List[Int])
 
 object Header {
 
-  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty, List.empty)
+  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty)
 
   implicit val jsonDecoder: Decoder[Header] = (c: HCursor) =>
     for {
@@ -44,7 +43,6 @@ object Header {
       nonce,
       difficulty,
       equihashSolution,
-      List.empty
     )
 }
 
