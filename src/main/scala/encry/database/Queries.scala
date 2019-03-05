@@ -19,15 +19,16 @@ object Queries extends StrictLogging {
     txs <- insertTransactionsQuery(block)
     inputs <- insertInputsQuery(block.getDBInputs)
     inputsToNode <- insertInputToNodeQuery(block.getDBInputs, node)
+    nonActiveOutputs <- markOutputsAsNonActive(block.getDBInputs)
     tokens <- insertTokens(block.getDbOutputs)
     accounts <- insertAccounts(block.getDbOutputs)
     outputs <- insertOutputsQuery(block.getDbOutputs)
     outputsToNode <- insertOutputToNodeQuery(block.getDbOutputs, node)
-  } yield header + nodeToHeader + txs + inputs + inputsToNode + tokens + accounts + outputs + outputsToNode
+    updateNode <- updateNode(block, node)
+  } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
-    val test = addr.getAddress.getHostAddress
-    logger.info(test)
+    val test = addr.getAddress.getHostName
     sql"""SELECT * FROM public.nodes WHERE ip = $test;""".query[Node].option
   }
 
@@ -36,6 +37,11 @@ object Queries extends StrictLogging {
     val query = "INSERT INTO public.nodes (ip, status, lastFullBlock, lastFullHeight) VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO " +
       "UPDATE SET status = true"
     Update[Node](query).run(nodeIns)
+  }
+
+  def updateNode(block: Block, address: InetSocketAddress): ConnectionIO[Int] = {
+    val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
+    Update[(String, Int, String)](query).run(block.header.id, block.header.height, address.getAddress.getHostName)
   }
 
   def insertHeaderQuery(header: Header): ConnectionIO[Int] = {
@@ -62,9 +68,17 @@ object Queries extends StrictLogging {
     val query: String =
       """
         |INSERT INTO public.inputs (bxId, txId, contract, proofs)
-        |VALUES (?, ?, ?, ?)
+        |VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBInput](query).updateMany(inputs)
+  }
+
+  private def markOutputsAsNonActive(inputs: List[DBInput]): ConnectionIO[Int] = {
+    val query: String =
+      """
+        |UPDATE public.outputs SET isActive = false WHERE id = ?
+        |""".stripMargin
+    Update[String](query).updateMany(inputs.map(_.bxId))
   }
 
   private def insertInputToNodeQuery(inputs: List[DBInput], node: InetSocketAddress): ConnectionIO[Int] = {
@@ -81,7 +95,7 @@ object Queries extends StrictLogging {
     val query: String =
       """
         |INSERT INTO public.outputs (id, txId, monetaryValue, coinId, contractHash, data, isActive)
-        |VALUES (?, ?, ?, ?, ?, ?, ?)
+        |VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBOutput](query).updateMany(outputs)
   }

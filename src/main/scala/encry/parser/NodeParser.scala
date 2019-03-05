@@ -1,6 +1,7 @@
 package encry.parser
 
 import java.net.InetSocketAddress
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.concurrent.duration._
 import akka.actor.{Actor, ActorRef}
@@ -20,6 +21,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
   var currentNodeBestBlock: Block = Block.empty
   var currentNodeBestBlockId: String = ""
   var currentBestBlockHeight: Int = -1
+  val isRecovering: AtomicBoolean = new AtomicBoolean(false)
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -42,6 +44,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
     case SetNodeParams(bestBlock, bestHeight) =>
       currentNodeBestBlockId = bestBlock
       currentBestBlockHeight = bestHeight
+      logger.info(s"Get currentNodeBestBlockId: $currentNodeBestBlockId. currentBestBlockHeight: $currentBestBlockHeight")
       context.become(workingCycle)
   }
 
@@ -53,10 +56,8 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
           logger.info(s"info route on node $node don't change")
         else {
           logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
-          val newHeight = newInfoRoute.fullHeight
-          recoverNodeChain(currentNodeInfo.fullHeight, newHeight)
           currentNodeInfo = newInfoRoute
-          updateBestBlock()
+          if (!isRecovering.get()) recoverNodeChain(currentBestBlockHeight, newInfoRoute.fullHeight)
         }
       }
     case _ =>
@@ -73,19 +74,25 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
   }
 
   def recoverNodeChain(start: Int, end: Int): Unit = {
+    isRecovering.set(true)
     (start to end).foreach{ height =>
+      logger.info("trying to reco")
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(err) => logger.info(s"Err: $err during get block at height $height")
           List.empty
         case Right(blocks) => blocks
       }
-      blocksAtHeight.foreach(blockId =>
+      blocksAtHeight.headOption.foreach(blockId =>
         parserRequests.getBlock(blockId) match {
           case Left(err) => logger.info(s"Error during getting block $blockId: ${err.getMessage}")
-          case Right(block) => dbActor ! BlockFromNode(block, node)
+          case Right(block) =>
+            currentNodeBestBlockId = block.header.id
+            currentBestBlockHeight = block.header.height
+            dbActor ! BlockFromNode(block, node)
         }
       )
     }
+    isRecovering.set(false)
   }
 }
 

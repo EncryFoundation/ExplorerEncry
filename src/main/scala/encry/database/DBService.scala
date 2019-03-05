@@ -48,7 +48,7 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     val res = Await.result(getNodeInfo(addr), 3.minutes)
     res match {
       case Some(info) => Future.successful(Some(info))
-      case None => activateNode(addr, infoRoute)
+      case None => activateNode(addr, InfoRoute.empty)
         Future.successful(Some(Node.empty(addr)))
     }
   }
