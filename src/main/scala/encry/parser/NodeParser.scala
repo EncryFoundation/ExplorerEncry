@@ -23,6 +23,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
   var currentBestBlockHeight: Int = -1
   val isRecovering: AtomicBoolean = new AtomicBoolean(false)
 
+
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
     context.system.scheduler.schedule(
@@ -98,6 +99,8 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
 object NodeParser {
 
   case object PingNode
+
+  case object CheckForRollback
 
   case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
 
