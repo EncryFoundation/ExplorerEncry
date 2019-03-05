@@ -76,7 +76,6 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
   def recoverNodeChain(start: Int, end: Int): Unit = {
     isRecovering.set(true)
     (start to end).foreach{ height =>
-      logger.info("trying to reco")
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(err) => logger.info(s"Err: $err during get block at height $height")
           List.empty
