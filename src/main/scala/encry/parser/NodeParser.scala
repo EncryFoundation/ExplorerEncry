@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.ActivateNodeAndGetNodeInfo
-import encry.parser.NodeParser.{BlockFromNode, PingNode, SetNodeParams}
+import encry.parser.NodeParser.{BlockFromNode, PingNode, Recover, SetNodeParams}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
@@ -22,7 +22,6 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
   var currentNodeBestBlockId: String = ""
   var currentBestBlockHeight: Int = -1
   val isRecovering: AtomicBoolean = new AtomicBoolean(false)
-
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -58,9 +57,11 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
         else {
           logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
           currentNodeInfo = newInfoRoute
-          if (!isRecovering.get()) recoverNodeChain(currentBestBlockHeight, newInfoRoute.fullHeight)
+          if (currentNodeInfo.fullHeight > currentBestBlockHeight) self ! Recover
         }
       }
+    case Recover if !isRecovering.get() => recoverNodeChain(currentBestBlockHeight, currentNodeInfo.fullHeight)
+    case Recover => logger.info("Trying to recover, but recovering process is started")
     case _ =>
   }
 
@@ -105,5 +106,7 @@ object NodeParser {
   case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
 
   case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress)
+
+  case object Recover
 }
 
