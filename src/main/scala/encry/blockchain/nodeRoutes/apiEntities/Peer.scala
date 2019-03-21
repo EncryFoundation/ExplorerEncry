@@ -13,7 +13,7 @@ object Peer {
   implicit val decoder: Decoder[Peer] = (c: HCursor) => for {
     addressStr <- c.downField("address").as[String]
     name <- c.downField("name").as[String]
-    connectionType <- c.downField("name").as[String]
+    connectionType <- c.downField("connectionType").as[String]
   } yield Peer(
     new InetSocketAddress(addressStr.split("/").head, 9051),
     name,
