@@ -76,6 +76,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
+      println("peers: " + parserRequests.getPeers)
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
       parserRequests.getBlock(fromBlock) match {
