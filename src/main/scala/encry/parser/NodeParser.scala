@@ -8,8 +8,8 @@ import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.ActivateNodeAndGetNodeInfo
-import encry.parser.NodeParser.{BlockFromNode, PingNode, Recover, SetNodeParams}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
+import encry.parser.NodeParser._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
@@ -22,6 +22,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
   var currentNodeBestBlockId: String = ""
   var currentBestBlockHeight: Int = -1
   val isRecovering: AtomicBoolean = new AtomicBoolean(false)
+  var lastIds: List[String] = List.empty[String]
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -60,7 +61,32 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
           if (currentNodeInfo.fullHeight > currentBestBlockHeight) self ! Recover
         }
       }
-    case Recover if !isRecovering.get() => recoverNodeChain(currentBestBlockHeight, currentNodeInfo.fullHeight)
+      parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
+        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
+        case Right(newLastHeaders) =>
+          if (isRecovering.get() || currentBestBlockHeight != currentNodeInfo.fullHeight)
+            logger.info("Get last headers, but node is recovering, so ignore them")
+          else {
+            if (lastIds.nonEmpty) {
+              val commonPoint = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
+              val toDel = lastIds.reverse.takeWhile(_ != commonPoint)
+              if (toDel.nonEmpty) self ! ResolveFork(commonPoint, toDel)
+            }
+            lastIds = newLastHeaders
+            logger.info(s"Current last id is: ${lastIds.last}")
+          }
+      }
+    case ResolveFork(fromBlock, toDel) =>
+      logger.info(s"Resolving fork from block: $fromBlock")
+      parserRequests.getBlock(fromBlock) match {
+        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
+        case Right(block) =>
+          currentNodeBestBlockId = block.header.id
+          currentBestBlockHeight = block.header.height
+          dbActor ! DropBlocksFromNode(node, toDel)
+          self ! Recover
+      }
+    case Recover if !isRecovering.get() => recoverNodeChain(currentBestBlockHeight + 1, currentNodeInfo.fullHeight)
     case Recover => logger.info("Trying to recover, but recovering process is started")
     case _ =>
   }
@@ -106,6 +132,8 @@ object NodeParser {
   case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
 
   case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress)
+
+  case class ResolveFork(fromBlock: String, toDel: List[String])
 
   case object Recover
 }

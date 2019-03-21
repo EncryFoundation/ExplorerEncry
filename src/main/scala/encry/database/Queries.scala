@@ -24,7 +24,7 @@ object Queries extends StrictLogging {
     accounts <- insertAccounts(block.getDbOutputs)
     outputs <- insertOutputsQuery(block.getDbOutputs)
     outputsToNode <- insertOutputToNodeQuery(block.getDbOutputs, node)
-    updateNode <- updateNode(block, node)
+    _ <- updateNode(block, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
@@ -138,5 +138,9 @@ object Queries extends StrictLogging {
          |VALUES(?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderToNode](query).run(headerToNode)
+  }
+
+  def dropHeaderFromNode(headerId: String, addr: InetSocketAddress): ConnectionIO[Int] = {
+    sql"""DELETE FROM public.headerToNode WHERE id = $headerId, nodeIp = ${addr.getAddress.getHostAddress};""".query[Int].unique
   }
 }

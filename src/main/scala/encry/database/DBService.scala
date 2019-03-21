@@ -41,6 +41,10 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     runAsync(nodeInfoQuery(addr), "nodeInfo")
   }
 
+  def deleteBlocksFromNode(addr: InetSocketAddress, headerId: String): Future[Int] = {
+    runAsync(dropHeaderFromNode(headerId, addr), "deleteBlocks")
+  }
+
   def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Int] =
     runAsync(insertNode(addr, infoRoute), "activateNode")
 
