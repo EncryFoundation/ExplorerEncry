@@ -23,8 +23,9 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
     elem <- decoder.decodeJson(json)
   } yield elem
 
-  def getInfo: Either[Error, InfoRoute] =
+  def getInfo: Either[Error, InfoRoute] = {
     makeGetRequest[InfoRoute](s"http://${node.getAddress.getHostAddress}:${node.getPort}/info")
+  }
 
   def getBlock(blockId: String): Either[Error, Block] =
     makeGetRequest[Block](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/$blockId")

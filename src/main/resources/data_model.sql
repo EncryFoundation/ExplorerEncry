@@ -83,3 +83,16 @@ CREATE TABLE outputsToNodes(
   outputId VARCHAR(64) REFERENCES outputs (id),
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
 );
+
+CREATE TABLE directive(
+  tx_id VARCHAR(64) REFERENCES transactions (id),
+  number_in_tx INTEGER NOT NULL,
+  type_id SMALLINT NOT NULL,
+  is_valid BOOLEAN NOT NULL,
+  contract_hash TEXT NOT NULL,
+  amount BIGINT NOT NULL,
+  address TEXT NOT NULL,
+  token_id_opt TEXT,
+  data_field TEXT NOT NULL,
+  PRIMARY KEY (tx_id, number_in_tx)
+);
