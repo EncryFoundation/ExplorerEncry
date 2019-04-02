@@ -1,6 +1,7 @@
 package encry.database
 
 import java.net.InetSocketAddress
+
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import doobie.free.connection.ConnectionIO
@@ -10,6 +11,7 @@ import doobie.implicits._
 import encry.blockchain.modifiers.{Block, Directive, DirectiveDBVersion, Header, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
+import org.encryfoundation.common.Algos
 
 object Queries extends StrictLogging {
 

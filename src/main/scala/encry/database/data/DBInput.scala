@@ -21,3 +21,4 @@ object DBInput {
 
   def apply(bxId: String, txId: String, contract: String, proofs: String): DBInput = new DBInput(bxId, txId, contract, proofs)
 }
+
