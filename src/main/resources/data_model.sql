@@ -71,8 +71,9 @@ CREATE TABLE outputs(
   monetaryValue BIGINT NOT NULL,
   coinId VARCHAR(64) REFERENCES tokens (id),
   contractHash VARCHAR(64) REFERENCES accounts (contractHash),
-  data VARCHAR,
-  isActive BOOLEAN NOT NULL
+  data VARCHAR(1024),
+  isActive BOOLEAN NOT NULL,
+  minerAddress VARCHAR(64) NOT NULL
 );
 
 CREATE INDEX txId_outputs_index ON outputs (txId);
@@ -82,17 +83,4 @@ CREATE INDEX contractHash_outputs_index ON outputs (contractHash);
 CREATE TABLE outputsToNodes(
   outputId VARCHAR(64) REFERENCES outputs (id),
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
-);
-
-CREATE TABLE directive(
-  tx_id VARCHAR(64) REFERENCES transactions (id),
-  number_in_tx INTEGER NOT NULL,
-  type_id SMALLINT NOT NULL,
-  is_valid BOOLEAN NOT NULL,
-  contract_hash TEXT NOT NULL,
-  amount BIGINT NOT NULL,
-  address TEXT NOT NULL,
-  token_id_opt TEXT,
-  data_field TEXT NOT NULL,
-  PRIMARY KEY (tx_id, number_in_tx)
 );

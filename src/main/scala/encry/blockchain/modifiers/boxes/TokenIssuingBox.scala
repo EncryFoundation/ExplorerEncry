@@ -1,33 +1,62 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.{Decoder, HCursor}
+import io.circe.syntax._
+import encry.blockchain.modifiers.boxes.Box.Amount
+import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
+import encry.blockchain.modifiers.boxes.TokenIssuingBox.TokenId
+import io.circe.{Decoder, Encoder, HCursor}
+import org.encryfoundation.common.Algos
+import org.encryfoundation.prismlang.core.Types
+import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
 
-case class TokenIssuingBox(override val id: String,
-                           override val proposition: String,
+case class TokenIssuingBox(override val proposition: EncryProposition,
                            override val nonce: Long,
-                           amount: Long,
-                           tokenId: String) extends EncryBaseBox {
+                           override val amount: Amount,
+                           tokenId: TokenId)
+  extends EncryBox[EncryProposition] with MonetaryBox {
 
-  override val typeId: Byte = 2.toByte
+  override val typeId: BxTypeId = TokenIssuingBox.TypeId
+
+  override val tpe: Types.Product = Types.AssetIssuingBox
+
+  override def asVal: PValue = PValue(asPrism, Types.DataBox)
+
+  override def asPrism: PObject =
+    PObject(baseFields ++ Map(
+      "amount" -> PValue(amount, Types.PInt)
+    ), tpe)
+
+  override def toDBBoxes: DBBoxGeneralizedClass =
+    DBBoxGeneralizedClass(Algos.encode(id),Algos.encode(tokenId),Algos.encode(proposition.contractHash),nonce = nonce)
 }
 
 object TokenIssuingBox {
 
-  val TypeId = 2.toByte
+  type TokenId = Array[Byte]
+
+  val TypeId: BxTypeId = 3.toByte
+
+  implicit val jsonEncoder: Encoder[TokenIssuingBox] = (bx: TokenIssuingBox) => Map(
+    "type" -> TypeId.asJson,
+    "id" -> Algos.encode(bx.id).asJson,
+    "tokenId" -> Algos.encode(bx.tokenId).asJson,
+    "proposition" -> bx.proposition.asJson,
+    "nonce" -> bx.nonce.asJson,
+    "amount" -> bx.amount.asJson
+  ).asJson
 
   implicit val jsonDecoder: Decoder[TokenIssuingBox] = (c: HCursor) => {
     for {
-      id          <- c.downField("id").as[String]
-      proposition <- c.downField("proposition").as[String]
-      nonce       <- c.downField("nonce").as[Long]
-      amount      <- c.downField("amount").as[Long]
-      tokenId     <- c.downField("tokenId").as[String]
+      proposition <- c.downField("proposition").as[EncryProposition]
+      nonce <- c.downField("nonce").as[Long]
+      amount <- c.downField("amount").as[Long]
+      tokenId <- c.downField("tokenId").as[String]
     } yield TokenIssuingBox(
-      id,
       proposition,
       nonce,
       amount,
-      tokenId
+      Algos.decode(tokenId).getOrElse(Array.emptyByteArray)
     )
   }
+
 }

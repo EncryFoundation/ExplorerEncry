@@ -11,7 +11,7 @@ import encry.database.{DBActor, DBService}
 
 import scala.concurrent.ExecutionContextExecutor
 
-object ExplorerApp extends App {
+object  ExplorerApp extends App {
 
   implicit val system: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()

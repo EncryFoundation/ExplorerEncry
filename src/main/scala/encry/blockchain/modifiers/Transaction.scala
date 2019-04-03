@@ -1,6 +1,6 @@
 package encry.blockchain.modifiers
 
-import encry.blockchain.modifiers.boxes.EncryBaseBox
+import encry.blockchain.modifiers.boxes.EncryBaseBoxAPI
 import io.circe.{Decoder, HCursor}
 import org.encryfoundation.common.transaction.{Input, Proof}
 
@@ -8,7 +8,7 @@ case class Transaction(id: String,
                        fee: Long,
                        timestamp: Long,
                        inputs: IndexedSeq[Input],
-                       outputs: IndexedSeq[EncryBaseBox],
+                       outputs: IndexedSeq[EncryBaseBoxAPI],
                        defaultProofOpt: Option[Proof],
                        directive: IndexedSeq[Directive])
 
@@ -20,7 +20,7 @@ object Transaction {
       fee             <- c.downField("fee").as[Long]
       timestamp       <- c.downField("timestamp").as[Long]
       inputs          <- c.downField("inputs").as[IndexedSeq[Input]]
-      outputs         <- c.downField("outputs").as[IndexedSeq[EncryBaseBox]]
+      outputs         <- c.downField("outputs").as[IndexedSeq[EncryBaseBoxAPI]]
       defaultProofOpt <- c.downField("defaultProofOpt").as[Option[Proof]]
       directives      <- c.downField("directives").as[IndexedSeq[Directive]]
     } yield Transaction(

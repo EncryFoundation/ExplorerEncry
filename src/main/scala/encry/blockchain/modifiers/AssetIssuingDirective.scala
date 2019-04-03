@@ -1,19 +1,31 @@
 package encry.blockchain.modifiers
 
+import com.google.common.primitives.Ints
 import io.circe.syntax._
 import encry.blockchain.modifiers.Directive.DTypeId
+import encry.blockchain.modifiers.boxes.{EncryBaseBox, EncryProposition, TokenIssuingBox}
+import encry.utils.Utils
 import io.circe.{Decoder, Encoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
 import scorex.crypto.encode.Base16
+import scorex.crypto.hash.Digest32
 
 case class AssetIssuingDirective (contractHash: ContractHash, amount: Long) extends Directive{
 
-  override def toDbDirective(txId: String, numberInTx: Int): DirectiveDBVersion =
-  DirectiveDBVersion(txId, numberInTx, typeId, isValid, Base16.encode(contractHash), amount, "", None, "")
+  override def toDBDirective: DBDirectiveGeneralizedClass = DBDirectiveGeneralizedClass()
 
   override val isValid: Boolean = amount > 0
+
   override val typeId: DTypeId = AssetIssuingDirective.TypeId
+
+  override def boxes(digest: Digest32, idx: Int): EncryBaseBox =
+    TokenIssuingBox(
+      EncryProposition(contractHash),
+      Utils.nonceFromDigest(digest ++ Ints.toByteArray(idx)),
+      amount,
+      Algos.hash(Ints.toByteArray(idx) ++ digest)
+    )
 }
 
 object AssetIssuingDirective {

@@ -1,33 +1,61 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.{Decoder, HCursor}
+import encry.blockchain.modifiers.boxes.Box.Amount
+import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
+import encry.settings.Constants
+import io.circe.{Decoder, Encoder, HCursor}
+import org.encryfoundation.common.Algos
+import org.encryfoundation.prismlang.core.Types
+import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
+import io.circe.syntax._
 
-case class AssetBox(override val id: String,
-                    override val proposition: String,
+case class AssetBox(override val proposition: EncryProposition,
                     override val nonce: Long,
-                    amount: Long,
-                    tokenIdOpt: Option[String] = None) extends EncryBaseBox {
+                    override val amount: Amount,
+                    tokenIdOpt: Option[Array[Byte]] = None)
+  extends EncryBox[EncryProposition] with MonetaryBox {
 
   override val typeId: Byte = AssetBox.TypeId
+
+
+  override val tpe: Types.Product = Types.AssetBox
+
+  override def asVal: PValue = PValue(asPrism, Types.AssetBox)
+
+  override def asPrism: PObject =
+    PObject(baseFields ++ Map(
+      "amount" -> PValue(amount, Types.PInt),
+      "tokenId" -> PValue(tokenIdOpt.getOrElse(Constants.IntrinsicTokenId), Types.PCollection.ofByte)
+    ), tpe)
+
+  override def toDBBoxes: DBBoxGeneralizedClass =
+    DBBoxGeneralizedClass(Algos.encode(id), Algos.encode(tokenIdOpt.getOrElse(Constants.IntrinsicTokenId)), Algos.encode(proposition.contractHash),nonce = nonce)
 }
 
 object AssetBox {
 
-  val TypeId: Byte = 1.toByte
+  val TypeId: BxTypeId = 1.toByte
+
+  implicit val jsonEncoder: Encoder[AssetBox] = (bx: AssetBox) => Map(
+    "type" -> TypeId.asJson,
+    "id" -> Algos.encode(bx.id).asJson,
+    "proposition" -> bx.proposition.asJson,
+    "nonce" -> bx.nonce.asJson,
+    "value" -> bx.amount.asJson,
+    "tokenId" -> bx.tokenIdOpt.map(id => Algos.encode(id)).asJson
+  ).asJson
 
   implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) => {
     for {
-      id          <- c.downField("id").as[String]
-      proposition <- c.downField("proposition").as[Proposition]
-      nonce       <- c.downField("nonce").as[Long]
-      amount      <- c.downField("value").as[Long]
-      tokenIdOpt  <- c.downField("tokenId").as[Option[String]]
+      proposition <- c.downField("proposition").as[EncryProposition]
+      nonce <- c.downField("nonce").as[Long]
+      amount <- c.downField("value").as[Long]
+      tokenIdOpt <- c.downField("tokenId").as[Option[String]]
     } yield AssetBox(
-      id,
-      proposition.contractHash,
+      proposition,
       nonce,
       amount,
-      tokenIdOpt
+      tokenIdOpt.map(str => Algos.decode(str).getOrElse(Array.emptyByteArray))
     )
   }
 }

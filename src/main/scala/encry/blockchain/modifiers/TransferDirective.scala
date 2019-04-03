@@ -1,14 +1,16 @@
 package encry.blockchain.modifiers
 
+import com.google.common.primitives.Ints
 import io.circe.syntax._
 import encry.blockchain.modifiers.Directive.DTypeId
-import encry.database.data.{DBDirective, DBOutput}
+import encry.blockchain.modifiers.boxes.{AssetBox, EncryBaseBox, EncryProposition}
+import encry.utils.Utils
 import io.circe.{Decoder, Encoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.common.transaction.EncryAddress
 import org.encryfoundation.common.transaction.EncryAddress.Address
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
-import scorex.crypto.encode.Base16
+import scorex.crypto.hash.Digest32
 
 case class TransferDirective(address: Address,
                              amount: Long,
@@ -16,10 +18,14 @@ case class TransferDirective(address: Address,
 
   override val isValid: Boolean = amount > 0 && EncryAddress.resolveAddress(address).isSuccess
 
-  override def toDbDirective(txId: String, numberInTx: Int): DBOutput =
-    DBDirective(txId, numberInTx, typeId, isValid, "", amount, address, tokenIdOpt.map(Base16.encode), "")
+  override def toDBDirective: DBDirectiveGeneralizedClass = DBDirectiveGeneralizedClass(address = address, amount = amount)
 
   override val typeId: DTypeId = TransferDirective.TypeId
+
+  override def boxes(digest: Digest32, idx: Int): EncryBaseBox =
+    AssetBox(EncryProposition.addressLocked(address),
+      Utils.nonceFromDigest(digest ++ Ints.toByteArray(idx)), amount, tokenIdOpt)
+
 }
 
 object TransferDirective {

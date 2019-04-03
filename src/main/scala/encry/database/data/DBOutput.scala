@@ -1,7 +1,9 @@
 package encry.database.data
 
-import encry.blockchain.modifiers.boxes.{AssetBox, DataBox, EncryBaseBox, TokenIssuingBox}
+import encry.blockchain.modifiers.DBDirectiveGeneralizedClass
+import encry.blockchain.modifiers.boxes.{AssetBox, AssetBoxAPIAPI, DBBoxGeneralizedClass, DataBox, DataBoxAPI, EncryBaseBox, EncryBaseBoxAPI, TokenIssuingBox, TokenIssuingBoxAPI}
 import encry.settings.Constants
+import org.encryfoundation.common.Algos
 
 case class DBOutput(id: String,
                     txId: String,
@@ -9,9 +11,14 @@ case class DBOutput(id: String,
                     coinId: String,
                     contractHash: String,
                     data: String,
-                    isActive: Boolean)
+                    isActive: Boolean,
+                    minerAddress: String){
+  override def toString: String = s"$id, $txId, $monetaryValue, $coinId, $contractHash, $data, $isActive, $minerAddress"
+}
 
 object DBOutput {
+
+  def apply(directive: DBDirectiveGeneralizedClass, box: DBBoxGeneralizedClass, txId: String, isActive: Boolean): DBOutput = new DBOutput(box.id, txId, directive.amount, box.coinId, box.contractHash, box.data, isActive, directive.address)
 
   def apply(id: String,
             txId: String,
@@ -19,38 +26,42 @@ object DBOutput {
             coinId: String,
             contractHash: String,
             data: String,
-            isActive: Boolean): DBOutput = new DBOutput(id, txId, monetaryValue, coinId, contractHash, data, isActive)
+            isActive: Boolean,
+            minerAddress: String): DBOutput = new DBOutput(id, txId, monetaryValue, coinId, contractHash, data, isActive, minerAddress)
 
   def apply(output: EncryBaseBox, txId: String): DBOutput = output match {
     case assetBox: AssetBox =>
       new DBOutput(
-        assetBox.id,
+        Algos.encode(assetBox.id),
         txId,
         assetBox.amount,
-        assetBox.tokenIdOpt.getOrElse(Constants.IntrinsicTokenId),
-        assetBox.proposition,
+        Algos.encode(assetBox.tokenIdOpt.getOrElse(Constants.IntrinsicTokenId)),
+        Algos.encode(assetBox.proposition.contractHash),
         "",
-        true
+        true,
+        ""
       )
     case dataBox: DataBox =>
       new DBOutput(
-        dataBox.id,
+        Algos.encode(dataBox.id),
         txId,
         -1,
         "",
-        dataBox.proposition,
-        dataBox.data,
-        true
+        Algos.encode(dataBox.proposition.contractHash),
+        Algos.encode(dataBox.data),
+        true,
+        ""
       )
     case tokenIssuingBox: TokenIssuingBox =>
       new DBOutput(
-        tokenIssuingBox.id,
+        Algos.encode(tokenIssuingBox.id),
         txId,
         tokenIssuingBox.amount,
-        tokenIssuingBox.tokenId,
-        tokenIssuingBox.proposition,
+        Algos.encode(tokenIssuingBox.tokenId),
+        Algos.encode(tokenIssuingBox.proposition.contractHash),
         "",
-        true
+        true,
+        ""
       )
   }
 }
