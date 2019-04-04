@@ -28,9 +28,9 @@ object ScriptedAssetDirective{
   val TypeId: DTypeId = 3.toByte
 
   implicit val jsonDecoder: Decoder[ScriptedAssetDirective] = (c: HCursor) => for {
-    contractHash <- c.downField("contractHash").as[String]
-    amount <- c.downField("amount").as[Long]
-    tokenIdOpt <- c.downField("tokenId").as[Option[String]]
+    contractHash  <- c.downField("contractHash").as[String]
+    amount        <- c.downField("amount").as[Long]
+    tokenIdOpt    <- c.downField("tokenId").as[Option[String]]
   } yield Algos.decode(contractHash)
     .map(ch => ScriptedAssetDirective(ch, amount, tokenIdOpt.flatMap(id => Algos.decode(id).map(ADKey @@ _).toOption)))
     .getOrElse(throw new Exception("Decoding failed"))

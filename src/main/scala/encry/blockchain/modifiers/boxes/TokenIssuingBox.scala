@@ -1,10 +1,8 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.syntax._
 import encry.blockchain.modifiers.boxes.Box.Amount
-import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
 import encry.blockchain.modifiers.boxes.TokenIssuingBox.TokenId
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{Decoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.core.Types
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
@@ -15,7 +13,7 @@ case class TokenIssuingBox(override val proposition: EncryProposition,
                            tokenId: TokenId)
   extends EncryBox[EncryProposition] with MonetaryBox {
 
-  override val typeId: BxTypeId = TokenIssuingBox.TypeId
+  override val typeId: Byte = TokenIssuingBox.TypeId
 
   override val tpe: Types.Product = Types.AssetIssuingBox
 
@@ -34,14 +32,14 @@ object TokenIssuingBox {
 
   type TokenId = Array[Byte]
 
-  val TypeId: BxTypeId = 3.toByte
+  val TypeId: Byte = 3.toByte
 
   implicit val jsonDecoder: Decoder[TokenIssuingBox] = (c: HCursor) => {
     for {
-      proposition <- c.downField("proposition").as[EncryProposition]
-      nonce <- c.downField("nonce").as[Long]
-      amount <- c.downField("amount").as[Long]
-      tokenId <- c.downField("tokenId").as[String]
+      proposition   <- c.downField("proposition").as[EncryProposition]
+      nonce         <- c.downField("nonce").as[Long]
+      amount        <- c.downField("amount").as[Long]
+      tokenId       <- c.downField("tokenId").as[String]
     } yield TokenIssuingBox(
       proposition,
       nonce,

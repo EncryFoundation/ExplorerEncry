@@ -4,13 +4,13 @@ import encry.blockchain.modifiers.boxes.EncryBaseBoxAPI
 import io.circe.{Decoder, HCursor}
 import org.encryfoundation.common.transaction.{Input, Proof}
 
-case class Transaction(id: String,
-                       fee: Long,
-                       timestamp: Long,
-                       inputs: IndexedSeq[Input],
-                       outputs: IndexedSeq[EncryBaseBoxAPI],
-                       defaultProofOpt: Option[Proof],
-                       directive: IndexedSeq[Directive])
+case class Transaction(id: String = "",
+                       fee: Long = 0L,
+                       timestamp: Long = 0L,
+                       inputs: IndexedSeq[Input] = IndexedSeq.empty[Input],
+                       outputs: IndexedSeq[EncryBaseBoxAPI] = IndexedSeq.empty[EncryBaseBoxAPI],
+                       defaultProofOpt: Option[Proof] = None,
+                       directive: IndexedSeq[Directive] = IndexedSeq.empty[Directive])
 
 object Transaction {
 

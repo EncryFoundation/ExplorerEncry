@@ -8,8 +8,6 @@ trait EncryBox[P <: EncryProposition] extends EncryBaseBox {
 
 object EncryBox {
 
-  type BxTypeId = Byte
-
   val BoxIdSize = 32
 }
 

@@ -1,8 +1,6 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.syntax._
-import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{Decoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.core.Types
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
@@ -11,7 +9,7 @@ case class DataBox(override val proposition: EncryProposition,
                    override val nonce: Long,
                    data: Array[Byte]) extends EncryBox[EncryProposition] {
 
-  override val typeId: BxTypeId = DataBox.TypeId
+  override val typeId: Byte = DataBox.TypeId
 
   override val tpe: Types.Product = Types.DataBox
 
@@ -28,13 +26,13 @@ case class DataBox(override val proposition: EncryProposition,
 
 object DataBox {
 
-  val TypeId: BxTypeId = 4.toByte
+  val TypeId: Byte = 4.toByte
 
   implicit val jsonDecoder: Decoder[DataBox] = (c: HCursor) => {
     for {
-      proposition <- c.downField("proposition").as[EncryProposition]
-      nonce <- c.downField("nonce").as[Long]
-      data <- c.downField("data").as[Array[Byte]]
+      proposition   <- c.downField("proposition").as[EncryProposition]
+      nonce         <- c.downField("nonce").as[Long]
+      data          <- c.downField("data").as[Array[Byte]]
     } yield DataBox(
       proposition,
       nonce,

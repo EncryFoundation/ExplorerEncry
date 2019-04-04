@@ -21,22 +21,20 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
     elem <- decoder.decodeJson(json)
   } yield elem
 
-  def getInfo: Either[Error, InfoRoute] = {
+  def getInfo: Either[Error, InfoRoute] =
     makeGetRequest[InfoRoute](s"http://${node.getAddress.getHostAddress}:${node.getPort}/info")
-  }
 
   def getBlock(blockId: String): Either[Error, Block] =
     makeGetRequest[Block](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/$blockId")
 
-  def getBlocksAtHeight(height: Int): Either[Error, List[String]] = {
+  def getBlocksAtHeight(height: Int): Either[Error, List[String]] =
     makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/at/$height")
-  }
 
-  def getLastIds(qty: Int, maxHeight: Int): Either[Error, List[String]] = {
-    makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history?limit=$qty&offset=${maxHeight-qty+1}")
-  }
 
-  def getPeers: Either[Error, List[Peer]] = {
+  def getLastIds(qty: Int, maxHeight: Int): Either[Error, List[String]] =
+    makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history?limit=$qty&offset=${maxHeight - qty + 1}")
+
+
+  def getPeers: Either[Error, List[Peer]] =
     makeGetRequest[List[Peer]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/peers/connected")
-  }
 }

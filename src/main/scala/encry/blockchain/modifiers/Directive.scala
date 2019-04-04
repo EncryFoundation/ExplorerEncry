@@ -2,10 +2,8 @@ package encry.blockchain.modifiers
 
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.EncryBaseBox
-import io.circe.{Decoder, DecodingFailure, Encoder}
+import io.circe.{Decoder, DecodingFailure}
 import org.encryfoundation.common.transaction.EncryAddress.Address
-import org.encryfoundation.common.utils.TaggedTypes.ADKey
-import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
 import scorex.crypto.hash.Digest32
 
 trait Directive {
@@ -38,25 +36,5 @@ object Directive {
     }
   }
 }
-
-case class DirectiveDBVersion(txId: String,
-                              numberInTx: Int,
-                              dTypeId: DTypeId,
-                              isValid: Boolean,
-                              contractHash: String,
-                              amount: Long,
-                              address: String,
-                              tokenIdOpt: Option[String],
-                              data: String)
-
-trait DBDirective {
-
-}
-
-case class DBTransferDirective(address: Address, tokenIdOpt: Option[ADKey] = None) extends DBDirective
-
-case class DBDataDirective(contractHash: ContractHash, data: Array[Byte]) extends DBDirective
-
-case class DBAssetIssuingDirective(contractHash: ContractHash, amount: Long) extends DBDirective
 
 case class DBDirectiveGeneralizedClass(address: Address = "", amount: Long = 0L)

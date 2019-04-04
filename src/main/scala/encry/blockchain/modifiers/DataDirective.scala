@@ -4,7 +4,6 @@ import com.google.common.primitives.Ints
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.{DataBox, EncryBaseBox, EncryProposition}
 import encry.utils.Utils
-import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
@@ -28,8 +27,8 @@ object DataDirective {
 
   implicit val jsonDecoder: Decoder[DataDirective] = (c: HCursor) => {
     for {
-      contractHash <- c.downField("contractHash").as[String]
-      dataEnc <- c.downField("data").as[String]
+      contractHash  <- c.downField("contractHash").as[String]
+      dataEnc       <- c.downField("data").as[String]
     } yield Algos.decode(contractHash)
       .flatMap(ch => Algos.decode(dataEnc).map(data => DataDirective(ch, data)))
       .getOrElse(throw new Exception("Decoding failed"))

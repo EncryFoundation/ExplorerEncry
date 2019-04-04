@@ -18,7 +18,7 @@ case class TransferDirective(address: Address,
 
   override val isValid: Boolean = amount > 0 && EncryAddress.resolveAddress(address).isSuccess
 
-  override def toDBDirective: DBDirectiveGeneralizedClass = DBDirectiveGeneralizedClass(address = address, amount = amount)
+  override def toDBDirective: DBDirectiveGeneralizedClass = DBDirectiveGeneralizedClass(address, amount)
 
   override val typeId: DTypeId = TransferDirective.TypeId
 
@@ -34,9 +34,9 @@ object TransferDirective {
 
   implicit val jsonDecoder: Decoder[TransferDirective] = (c: HCursor) => {
     for {
-      address <- c.downField("address").as[String]
-      amount <- c.downField("amount").as[Long]
-      tokenIdOpt <- c.downField("tokenId").as[Option[String]]
+      address     <- c.downField("address").as[String]
+      amount      <- c.downField("amount").as[Long]
+      tokenIdOpt  <- c.downField("tokenId").as[Option[String]]
     } yield TransferDirective(
       address,
       amount,

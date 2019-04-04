@@ -1,13 +1,11 @@
 package encry.blockchain.modifiers.boxes
 
 import encry.blockchain.modifiers.boxes.Box.Amount
-import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
 import encry.settings.Constants
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{Decoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.core.Types
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
-import io.circe.syntax._
 
 case class AssetBox(override val proposition: EncryProposition,
                     override val nonce: Long,
@@ -34,14 +32,14 @@ case class AssetBox(override val proposition: EncryProposition,
 
 object AssetBox {
 
-  val TypeId: BxTypeId = 1.toByte
+  val TypeId: Byte = 1.toByte
 
   implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) => {
     for {
-      proposition <- c.downField("proposition").as[EncryProposition]
-      nonce <- c.downField("nonce").as[Long]
-      amount <- c.downField("value").as[Long]
-      tokenIdOpt <- c.downField("tokenId").as[Option[String]]
+      proposition   <- c.downField("proposition").as[EncryProposition]
+      nonce         <- c.downField("nonce").as[Long]
+      amount        <- c.downField("value").as[Long]
+      tokenIdOpt    <- c.downField("tokenId").as[Option[String]]
     } yield AssetBox(
       proposition,
       nonce,

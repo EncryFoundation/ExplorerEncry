@@ -64,7 +64,7 @@ case class HeaderDBVersion(id: String,
 object HeaderDBVersion {
 
   def apply(block: Block): HeaderDBVersion = {
-    val (minerAddress: String, minerReward: Long) = minerInfo(block.payload.txs.find(_.inputs.isEmpty).get)
+    val (minerAddress: String, minerReward: Long) = minerInfo(block.payload.txs.find(_.inputs.isEmpty).getOrElse(Transaction()))
     HeaderDBVersion(
       block.header.id,
       block.header.version,
@@ -83,8 +83,8 @@ object HeaderDBVersion {
     )
   }
 
-     def minerInfo(coinbase: Transaction): (String, Long) = coinbase.directive.head match {
-    case TransferDirective(address, amount, tokenIdOpt) if tokenIdOpt.isEmpty => address -> amount
+     def minerInfo(coinbase: Transaction): (String, Long) = coinbase.directive.headOption match {
+    case Some(TransferDirective(address, amount, tokenIdOpt)) if tokenIdOpt.isEmpty => address -> amount
     case _ => "unknown" -> 0L
   }
 }

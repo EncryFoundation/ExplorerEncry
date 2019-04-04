@@ -1,7 +1,6 @@
 package encry.blockchain.modifiers.boxes
 
 import com.google.common.primitives.Longs
-import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
 import io.circe.{Decoder, DecodingFailure}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
@@ -16,7 +15,7 @@ case class DBBoxGeneralizedClass(id: String = "",
 
 trait EncryBaseBox extends Box[EncryProposition] with PConvertible {
 
-  val typeId: BxTypeId
+  val typeId: Byte
 
   val nonce: Long
 
@@ -42,7 +41,7 @@ object EncryBaseBox {
 
   implicit val jsonDecoder: Decoder[EncryBaseBox] = {
     Decoder.instance { c =>
-      c.downField("type").as[BxTypeId] match {
+      c.downField("type").as[Byte] match {
         case Right(s) => s match {
           case AssetBox.TypeId        => AssetBox.jsonDecoder(c)
           case DataBox.TypeId         => DataBox.jsonDecoder(c)

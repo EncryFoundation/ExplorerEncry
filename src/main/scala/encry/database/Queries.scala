@@ -7,25 +7,24 @@ import doobie.free.connection.ConnectionIO
 import doobie.util.update.Update
 import doobie.postgres.implicits._
 import doobie.implicits._
-import encry.blockchain.modifiers.{Block, Directive, DirectiveDBVersion, Header, HeaderDBVersion, Transaction}
+import encry.blockchain.modifiers.{Block, Header, HeaderDBVersion}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
-import org.encryfoundation.common.Algos
 
 object Queries extends StrictLogging {
 
   def proccessBlock(block: Block, node: InetSocketAddress): ConnectionIO[Int] = for {
-    header <- insertHeaderQuery(HeaderDBVersion(block))
-    nodeToHeader <- insertNodeToHeader(block.header, node)
-    txs <- insertTransactionsQuery(block)
-    inputs <- insertInputsQuery(block.getDBInputs)
-    inputsToNode <- insertInputToNodeQuery(block.getDBInputs, node)
-    nonActiveOutputs <- markOutputsAsNonActive(block.getDBInputs)
-    tokens <- insertTokens(block.getDbOutputs)
-    accounts <- insertAccounts(block.getDbOutputs)
-    outputs <- insertOutputsQuery(block.getDbOutputs)
-    outputsToNode <- insertOutputToNodeQuery(block.getDbOutputs, node)
-    _ <- updateNode(block, node)
+    header            <- insertHeaderQuery(HeaderDBVersion(block))
+    nodeToHeader      <- insertNodeToHeader(block.header, node)
+    txs               <- insertTransactionsQuery(block)
+    inputs            <- insertInputsQuery(block.getDBInputs)
+    inputsToNode      <- insertInputToNodeQuery(block.getDBInputs, node)
+    nonActiveOutputs  <- markOutputsAsNonActive(block.getDBInputs)
+    tokens            <- insertTokens(block.getDbOutputs)
+    accounts          <- insertAccounts(block.getDbOutputs)
+    outputs           <- insertOutputsQuery(block.getDbOutputs)
+    outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
+    _                 <- updateNode(block, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
@@ -144,18 +143,4 @@ object Queries extends StrictLogging {
   def dropHeaderFromNode(headerId: String, addr: InetSocketAddress): ConnectionIO[Int] = {
     sql"""DELETE FROM public.headerToNode WHERE id = $headerId, nodeIp = ${addr.getAddress.getHostAddress};""".query[Int].unique
   }
-
-//  private def insertDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {
-//    val directives: Seq[DirectiveDBVersion] = txs.map(tx => tx.id -> tx.directive).flatMap {
-//      case (id, directives) => directives.zipWithIndex.map {
-//        case (directive, number) => directive.toDbDirective(id, number)
-//      }
-//    }
-//    val query: String =
-//      """
-//        |INSERT INTO public.directive (tx_id, number_in_tx, type_id, is_valid, contract_hash, amount, address, token_id_opt, data_field)
-//        |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
-//        |""".stripMargin
-//    Update[DirectiveDBVersion](query).updateMany(directives.toList)
-//  }
 }

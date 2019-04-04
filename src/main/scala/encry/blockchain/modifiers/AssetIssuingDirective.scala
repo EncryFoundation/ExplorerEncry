@@ -1,7 +1,6 @@
 package encry.blockchain.modifiers
 
 import com.google.common.primitives.Ints
-import io.circe.syntax._
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.{EncryBaseBox, EncryProposition, TokenIssuingBox}
 import encry.utils.Utils
@@ -33,8 +32,8 @@ object AssetIssuingDirective {
 
   implicit val jsonDecoder: Decoder[AssetIssuingDirective] = (c: HCursor) => {
     for {
-      contractHash <- c.downField("contractHash").as[String]
-      amount <- c.downField("amount").as[Long]
+      contractHash  <- c.downField("contractHash").as[String]
+      amount        <- c.downField("amount").as[Long]
     } yield Algos.decode(contractHash)
       .map(ch => AssetIssuingDirective(ch, amount))
       .getOrElse(throw new Exception("Decoding failed"))
