@@ -1,16 +1,40 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.{Decoder, DecodingFailure, Encoder}
+import com.google.common.primitives.Longs
+import io.circe.{Decoder, DecodingFailure}
+import org.encryfoundation.common.Algos
+import org.encryfoundation.common.utils.TaggedTypes.ADKey
+import org.encryfoundation.prismlang.core.{PConvertible, Types}
+import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
 
-trait EncryBaseBox {
+case class DBBoxGeneralizedClass(id: String = "",
+                                 coinId: String = "",
+                                 contractHash: String = "",
+                                 data: String = "-",
+                                 nonce: Long = 0L)
 
-  val id: String
+trait EncryBaseBox extends Box[EncryProposition] with PConvertible {
 
   val typeId: Byte
 
-  val proposition: String
-
   val nonce: Long
+
+  override lazy val id: ADKey = ADKey @@ Algos.hash(Longs.toByteArray(nonce)).updated(0, typeId)
+
+  def isAmountCarrying: Boolean = this.isInstanceOf[MonetaryBox]
+
+  def toDBBoxes: DBBoxGeneralizedClass
+
+  override val tpe: Types.Product = Types.EncryBox
+
+  lazy val baseFields: Map[String, PValue] = Map(
+    "contractHash" -> PValue(proposition.contractHash, Types.PCollection.ofByte),
+    "typeId"       -> PValue(typeId.toLong, Types.PInt),
+    "id"           -> PValue(id, Types.PCollection.ofByte)
+  )
+
+  def asPrism: PObject = PObject(baseFields, tpe)
+
 }
 
 object EncryBaseBox {

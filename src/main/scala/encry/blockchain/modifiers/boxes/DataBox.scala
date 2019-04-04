@@ -1,30 +1,42 @@
 package encry.blockchain.modifiers.boxes
 
 import io.circe.{Decoder, HCursor}
+import org.encryfoundation.common.Algos
+import org.encryfoundation.prismlang.core.Types
+import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
 
-case class DataBox(override val id: String,
-                   override val proposition: String,
+case class DataBox(override val proposition: EncryProposition,
                    override val nonce: Long,
-                   data: String) extends EncryBaseBox {
+                   data: Array[Byte]) extends EncryBox[EncryProposition] {
 
   override val typeId: Byte = DataBox.TypeId
+
+  override val tpe: Types.Product = Types.DataBox
+
+  override def asVal: PValue = PValue(asPrism, Types.DataBox)
+
+  override def asPrism: PObject =
+    PObject(baseFields ++ Map(
+      "data" -> PValue(data, Types.PCollection.ofByte)
+    ), tpe)
+
+  override def toDBBoxes: DBBoxGeneralizedClass =
+    DBBoxGeneralizedClass(Algos.encode(id),"",Algos.encode(proposition.contractHash), Algos.encode(data), nonce)
 }
 
 object DataBox {
 
-  val TypeId = 4.toByte
+  val TypeId: Byte = 4.toByte
 
   implicit val jsonDecoder: Decoder[DataBox] = (c: HCursor) => {
     for {
-      id          <- c.downField("id").as[String]
-      proposition <- c.downField("proposition").as[String]
-      nonce       <- c.downField("nonce").as[Long]
-      data        <- c.downField("data").as[Array[Byte]]
+      proposition   <- c.downField("proposition").as[EncryProposition]
+      nonce         <- c.downField("nonce").as[Long]
+      data          <- c.downField("data").as[Array[Byte]]
     } yield DataBox(
-      id,
       proposition,
       nonce,
-      data.toString
+      data
     )
   }
 }

@@ -1,7 +1,7 @@
 package encry.database.data
 
-import encry.blockchain.modifiers.boxes.{AssetBox, DataBox, EncryBaseBox, TokenIssuingBox}
-import encry.settings.Constants
+import encry.blockchain.modifiers.DBDirectiveGeneralizedClass
+import encry.blockchain.modifiers.boxes.DBBoxGeneralizedClass
 
 case class DBOutput(id: String,
                     txId: String,
@@ -9,48 +9,16 @@ case class DBOutput(id: String,
                     coinId: String,
                     contractHash: String,
                     data: String,
-                    isActive: Boolean)
+                    isActive: Boolean,
+                    minerAddress: String){
+  override def toString: String = s"$id, $txId, $monetaryValue, $coinId, $contractHash, $data, $isActive, $minerAddress"
+}
 
 object DBOutput {
 
-  def apply(id: String,
+  def apply(directive: DBDirectiveGeneralizedClass,
+            box: DBBoxGeneralizedClass,
             txId: String,
-            monetaryValue: Long,
-            coinId: String,
-            contractHash: String,
-            data: String,
-            isActive: Boolean): DBOutput = new DBOutput(id, txId, monetaryValue, coinId, contractHash, data, isActive)
-
-  def apply(output: EncryBaseBox, txId: String): DBOutput = output match {
-    case assetBox: AssetBox =>
-      new DBOutput(
-        assetBox.id,
-        txId,
-        assetBox.amount,
-        assetBox.tokenIdOpt.getOrElse(Constants.IntrinsicTokenId),
-        assetBox.proposition,
-        "",
-        true
-      )
-    case dataBox: DataBox =>
-      new DBOutput(
-        dataBox.id,
-        txId,
-        -1,
-        "",
-        dataBox.proposition,
-        dataBox.data,
-        true
-      )
-    case tokenIssuingBox: TokenIssuingBox =>
-      new DBOutput(
-        tokenIssuingBox.id,
-        txId,
-        tokenIssuingBox.amount,
-        tokenIssuingBox.tokenId,
-        tokenIssuingBox.proposition,
-        "",
-        true
-      )
-  }
+            isActive: Boolean): DBOutput =
+    new DBOutput(box.id, txId, directive.amount, box.coinId, box.contractHash, box.data, isActive, directive.address)
 }

@@ -7,7 +7,7 @@ CREATE TABLE nodes(
 
 CREATE TABLE headers(
   id VARCHAR(64) PRIMARY KEY,
-  version SMALLINT NOT NULL,
+  version INTEGER NOT NULL,
   parent_id VARCHAR(64) NOT NULL,
   adProofsRoot VARCHAR(64) NOT NULL,
   stateRoot VARCHAR(66) NOT NULL,
@@ -16,7 +16,10 @@ CREATE TABLE headers(
   height INTEGER NOT NULL,
   nonce BIGINT NOT NULL,
   difficulty BIGINT NOT NULL,
-  equihashSolution INTEGER ARRAY NOT NULL
+  equihashSolution INTEGER ARRAY NOT NULL,
+  txCount INTEGER NOT NULL,
+  minerAddress VARCHAR NOT NULL,
+  minerReward BIGINT NOT NULL
 );
 
 CREATE TABLE headerToNode (
@@ -71,8 +74,9 @@ CREATE TABLE outputs(
   monetaryValue BIGINT NOT NULL,
   coinId VARCHAR(64) REFERENCES tokens (id),
   contractHash VARCHAR(64) REFERENCES accounts (contractHash),
-  data VARCHAR,
-  isActive BOOLEAN NOT NULL
+  data VARCHAR(1024),
+  isActive BOOLEAN NOT NULL,
+  minerAddress VARCHAR(64) NOT NULL
 );
 
 CREATE INDEX txId_outputs_index ON outputs (txId);

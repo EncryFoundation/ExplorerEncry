@@ -7,24 +7,24 @@ import doobie.free.connection.ConnectionIO
 import doobie.util.update.Update
 import doobie.postgres.implicits._
 import doobie.implicits._
-import encry.blockchain.modifiers.{Block, Header, Transaction}
+import encry.blockchain.modifiers.{Block, Header, HeaderDBVersion}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
 
 object Queries extends StrictLogging {
 
   def proccessBlock(block: Block, node: InetSocketAddress): ConnectionIO[Int] = for {
-    header <- insertHeaderQuery(block.header)
-    nodeToHeader <- insertNodeToHeader(block.header, node)
-    txs <- insertTransactionsQuery(block)
-    inputs <- insertInputsQuery(block.getDBInputs)
-    inputsToNode <- insertInputToNodeQuery(block.getDBInputs, node)
-    nonActiveOutputs <- markOutputsAsNonActive(block.getDBInputs)
-    tokens <- insertTokens(block.getDbOutputs)
-    accounts <- insertAccounts(block.getDbOutputs)
-    outputs <- insertOutputsQuery(block.getDbOutputs)
-    outputsToNode <- insertOutputToNodeQuery(block.getDbOutputs, node)
-    _ <- updateNode(block, node)
+    header            <- insertHeaderQuery(HeaderDBVersion(block))
+    nodeToHeader      <- insertNodeToHeader(block.header, node)
+    txs               <- insertTransactionsQuery(block)
+    inputs            <- insertInputsQuery(block.getDBInputs)
+    inputsToNode      <- insertInputToNodeQuery(block.getDBInputs, node)
+    nonActiveOutputs  <- markOutputsAsNonActive(block.getDBInputs)
+    tokens            <- insertTokens(block.getDbOutputs)
+    accounts          <- insertAccounts(block.getDbOutputs)
+    outputs           <- insertOutputsQuery(block.getDbOutputs)
+    outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
+    _                 <- updateNode(block, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
@@ -44,14 +44,14 @@ object Queries extends StrictLogging {
     Update[(String, Int, String)](query).run(block.header.id, block.header.height, address.getAddress.getHostName)
   }
 
-  def insertHeaderQuery(header: Header): ConnectionIO[Int] = {
+  def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
     val query: String =
       s"""
         |INSERT INTO public.headers (id, version, parent_id, adProofsRoot, stateRoot, transactionsRoot, timestamp, height, nonce,
-        |       difficulty, equihashSolution)
-        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+        |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
+        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
-    Update[Header](query).run(header)
+    Update[HeaderDBVersion](query).run(block)
   }
 
   private def insertTransactionsQuery(block: Block): ConnectionIO[Int] = {
@@ -94,8 +94,8 @@ object Queries extends StrictLogging {
   private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
     val query: String =
       """
-        |INSERT INTO public.outputs (id, txId, monetaryValue, coinId, contractHash, data, isActive)
-        |VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+        |INSERT INTO public.outputs (id, txId, monetaryValue, coinId, contractHash, data, isActive, minerAddress)
+        |VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBOutput](query).updateMany(outputs)
   }

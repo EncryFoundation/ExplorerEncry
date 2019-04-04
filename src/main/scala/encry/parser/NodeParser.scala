@@ -1,6 +1,6 @@
 package encry.parser
 
-import java.net.InetSocketAddress
+import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.concurrent.duration._
@@ -8,6 +8,7 @@ import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
+import encry.blockchain.nodeRoutes.apiEntities.Peer
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
 import encry.parser.NodeParser._
 
@@ -76,7 +77,17 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
-      println("peers: " + parserRequests.getPeers)
+      parserRequests.getPeers match {
+        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
+        case Right(peersList) =>
+          parserContoller ! PeersList(peersList.collect {
+            case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
+          })
+          logger.info(s"Send peer list: ${peersList.collect {
+            case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
+          }} to parserContoller.")
+
+      }
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
       parserRequests.getBlock(fromBlock) match {
@@ -104,7 +115,7 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
 
   def recoverNodeChain(start: Int, end: Int): Unit = {
     isRecovering.set(true)
-    (start to end).foreach{ height =>
+    (start to end).foreach { height =>
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(err) => logger.info(s"Err: $err during get block at height $height")
           List.empty
@@ -126,6 +137,8 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
 
 object NodeParser {
 
+  case class PeersList(peers: List[InetAddress])
+
   case object PingNode
 
   case object CheckForRollback
@@ -137,5 +150,5 @@ object NodeParser {
   case class ResolveFork(fromBlock: String, toDel: List[String])
 
   case object Recover
-}
 
+}

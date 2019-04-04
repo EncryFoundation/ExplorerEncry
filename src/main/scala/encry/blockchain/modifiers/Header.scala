@@ -46,3 +46,46 @@ object Header {
     )
 }
 
+case class HeaderDBVersion(id: String,
+                           version: Int,
+                           parentId: String,
+                           adProofsRoot: String,
+                           stateRoot: String,
+                           transactionsRoot: String,
+                           timestamp: Long,
+                           height: Int,
+                           nonce: Long,
+                           difficulty: Long,
+                           equihashSolution: List[Int],
+                           txCount: Int,
+                           minerAddress: String,
+                           minerReward: Long)
+
+object HeaderDBVersion {
+
+  def apply(block: Block): HeaderDBVersion = {
+    val (minerAddress: String, minerReward: Long) = minerInfo(block.payload.txs.find(_.inputs.isEmpty).getOrElse(Transaction()))
+    HeaderDBVersion(
+      block.header.id,
+      block.header.version,
+      block.header.parentId,
+      block.header.adProofsRoot,
+      block.header.stateRoot,
+      block.header.transactionsRoot,
+      block.header.timestamp,
+      block.header.height,
+      block.header.nonce,
+      block.header.difficulty,
+      block.header.equihashSolution,
+      block.payload.txs.size,
+      minerAddress,
+      minerReward,
+    )
+  }
+
+     def minerInfo(coinbase: Transaction): (String, Long) = coinbase.directive.headOption match {
+    case Some(TransferDirective(address, amount, tokenIdOpt)) if tokenIdOpt.isEmpty => address -> amount
+    case _ => "unknown" -> 0L
+  }
+}
+

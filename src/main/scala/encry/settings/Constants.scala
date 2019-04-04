@@ -4,5 +4,5 @@ import org.encryfoundation.common.Algos
 
 object Constants {
 
-  val IntrinsicTokenId: String = Algos.encode(Algos.hash("intrinsic_token"))
+  val IntrinsicTokenId: Array[Byte] = Algos.hash("intrinsic_token")
 }
