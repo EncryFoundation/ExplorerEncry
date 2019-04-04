@@ -8,7 +8,7 @@ import doobie.free.connection.ConnectionIO
 import doobie.util.update.Update
 import doobie.postgres.implicits._
 import doobie.implicits._
-import encry.blockchain.modifiers.{Block, Directive, DirectiveDBVersion, Header, Transaction}
+import encry.blockchain.modifiers.{Block, Directive, DirectiveDBVersion, Header, HeaderDBVersion, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
 import org.encryfoundation.common.Algos
@@ -16,7 +16,7 @@ import org.encryfoundation.common.Algos
 object Queries extends StrictLogging {
 
   def proccessBlock(block: Block, node: InetSocketAddress): ConnectionIO[Int] = for {
-    header <- insertHeaderQuery(block.header)
+    header <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader <- insertNodeToHeader(block.header, node)
     txs <- insertTransactionsQuery(block)
     inputs <- insertInputsQuery(block.getDBInputs)
@@ -46,14 +46,14 @@ object Queries extends StrictLogging {
     Update[(String, Int, String)](query).run(block.header.id, block.header.height, address.getAddress.getHostName)
   }
 
-  def insertHeaderQuery(header: Header): ConnectionIO[Int] = {
+  def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
     val query: String =
       s"""
         |INSERT INTO public.headers (id, version, parent_id, adProofsRoot, stateRoot, transactionsRoot, timestamp, height, nonce,
-        |       difficulty, equihashSolution)
-        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+        |       difficulty, equihashSolution, txCount)
+        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
-    Update[Header](query).run(header)
+    Update[HeaderDBVersion](query).run(block)
   }
 
   private def insertTransactionsQuery(block: Block): ConnectionIO[Int] = {

@@ -7,7 +7,7 @@ CREATE TABLE nodes(
 
 CREATE TABLE headers(
   id VARCHAR(64) PRIMARY KEY,
-  version SMALLINT NOT NULL,
+  version INTEGER NOT NULL,
   parent_id VARCHAR(64) NOT NULL,
   adProofsRoot VARCHAR(64) NOT NULL,
   stateRoot VARCHAR(66) NOT NULL,
@@ -16,7 +16,8 @@ CREATE TABLE headers(
   height INTEGER NOT NULL,
   nonce BIGINT NOT NULL,
   difficulty BIGINT NOT NULL,
-  equihashSolution INTEGER ARRAY NOT NULL
+  equihashSolution INTEGER ARRAY NOT NULL,
+  txCount INTEGER NOT NULL
 );
 
 CREATE TABLE headerToNode (
