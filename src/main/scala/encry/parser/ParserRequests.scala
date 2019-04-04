@@ -1,7 +1,6 @@
 package encry.parser
 
 import java.net.InetSocketAddress
-
 import encry.blockchain.nodeRoutes.InfoRoute
 import io.circe.{Decoder, Error}
 import scalaj.http._
@@ -10,7 +9,6 @@ import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.Block._
 import encry.blockchain.modifiers.Block
 import encry.blockchain.nodeRoutes.apiEntities.Peer
-
 import scala.io.Source
 
 case class ParserRequests(node: InetSocketAddress) extends StrictLogging {

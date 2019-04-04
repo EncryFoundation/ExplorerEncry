@@ -1,7 +1,6 @@
 package encry.database
 
 import java.net.InetSocketAddress
-
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import doobie.free.connection.ConnectionIO
@@ -50,8 +49,8 @@ object Queries extends StrictLogging {
     val query: String =
       s"""
         |INSERT INTO public.headers (id, version, parent_id, adProofsRoot, stateRoot, transactionsRoot, timestamp, height, nonce,
-        |       difficulty, equihashSolution, txCount)
-        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+        |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
+        |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderDBVersion](query).run(block)
   }

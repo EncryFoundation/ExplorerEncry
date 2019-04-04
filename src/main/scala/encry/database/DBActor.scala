@@ -1,14 +1,12 @@
 package encry.database
 
 import java.net.{InetAddress, InetSocketAddress}
-
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
 import encry.parser.NodeParser.{BlockFromNode, SetNodeParams}
 import encry.settings.DatabaseSettings
-
 import scala.concurrent.duration._
 import scala.concurrent.Await
 

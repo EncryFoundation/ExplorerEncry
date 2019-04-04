@@ -3,13 +3,11 @@ package encry.blockchain.modifiers
 import com.google.common.primitives.Ints
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.{DataBox, EncryBaseBox, EncryProposition}
-import encry.database.data.DBOutput
 import encry.utils.Utils
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
-import scorex.crypto.encode.Base16
 import scorex.crypto.hash.Digest32
 
 case class DataDirective(contractHash: ContractHash, data: Array[Byte]) extends Directive {

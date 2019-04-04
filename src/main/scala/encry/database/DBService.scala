@@ -1,7 +1,6 @@
 package encry.database
 
 import java.net.InetSocketAddress
-
 import com.typesafe.scalalogging.StrictLogging
 import encry.settings.DatabaseSettings
 import com.zaxxer.hikari.HikariDataSource
@@ -11,7 +10,6 @@ import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.hikari.HikariTransactor
 import encry.blockchain.nodeRoutes.InfoRoute
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal

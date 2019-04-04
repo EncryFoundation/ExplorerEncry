@@ -1,6 +1,6 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.{Decoder, DecodingFailure, Encoder}
+import io.circe.{Decoder, DecodingFailure}
 
 trait EncryBaseBoxAPI {
 

@@ -1,12 +1,6 @@
 package encry.blockchain.modifiers
 
-import encry.utils.CoreTaggedTypes.ModifierId
 import io.circe.{Decoder, HCursor}
-import org.encryfoundation.common.utils.TaggedTypes.ADDigest
-import scorex.crypto.encode.Base16
-import scorex.crypto.hash.Digest32
-
-import scala.util.Try
 
 case class Header(id: String,
                   version: Byte,
@@ -63,11 +57,14 @@ case class HeaderDBVersion(id: String,
                            nonce: Long,
                            difficulty: Long,
                            equihashSolution: List[Int],
-                           txCount: Int)
+                           txCount: Int,
+                           minerAddress: String,
+                           minerReward: Long)
 
 object HeaderDBVersion {
 
   def apply(block: Block): HeaderDBVersion = {
+    val (minerAddress: String, minerReward: Long) = minerInfo(block.payload.txs.find(_.inputs.isEmpty).get)
     HeaderDBVersion(
       block.header.id,
       block.header.version,
@@ -80,25 +77,15 @@ object HeaderDBVersion {
       block.header.nonce,
       block.header.difficulty,
       block.header.equihashSolution,
-      block.payload.txs.size
+      block.payload.txs.size,
+      minerAddress,
+      minerReward,
     )
   }
-//
-//  def apply(header: Header): HeaderDBVersion = {
-//    HeaderDBVersion(
-//      header.id,
-//      header.version,
-//      header.parentId,
-//      header.adProofsRoot,
-//      header.stateRoot,
-//      header.transactionsRoot,
-//      header.timestamp,
-//      header.height,
-//      header.nonce,
-//      header.difficulty,
-//      header.equihashSolution,
-//      0
-//    )
-//  }
+
+     def minerInfo(coinbase: Transaction): (String, Long) = coinbase.directive.head match {
+    case TransferDirective(address, amount, tokenIdOpt) if tokenIdOpt.isEmpty => address -> amount
+    case _ => "unknown" -> 0L
+  }
 }
 

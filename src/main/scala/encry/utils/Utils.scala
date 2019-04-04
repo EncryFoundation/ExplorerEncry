@@ -7,5 +7,4 @@ object Utils {
 
   def nonceFromDigest(digest: Array[Byte]): Long = Longs.fromByteArray(Algos.hash(digest).take(8))
 
-
 }

@@ -17,7 +17,9 @@ CREATE TABLE headers(
   nonce BIGINT NOT NULL,
   difficulty BIGINT NOT NULL,
   equihashSolution INTEGER ARRAY NOT NULL,
-  txCount INTEGER NOT NULL
+  txCount INTEGER NOT NULL,
+  minerAddress VARCHAR NOT NULL,
+  minerReward BIGINT NOT NULL
 );
 
 CREATE TABLE headerToNode (
