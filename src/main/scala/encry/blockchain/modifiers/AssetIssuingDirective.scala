@@ -31,12 +31,6 @@ object AssetIssuingDirective {
 
   val TypeId: DTypeId = 2.toByte
 
-  implicit val jsonEncoder: Encoder[AssetIssuingDirective] = (d: AssetIssuingDirective) => Map(
-    "typeId" -> d.typeId.asJson,
-    "contractHash" -> Algos.encode(d.contractHash).asJson,
-    "amount" -> d.amount.asJson
-  ).asJson
-
   implicit val jsonDecoder: Decoder[AssetIssuingDirective] = (c: HCursor) => {
     for {
       contractHash <- c.downField("contractHash").as[String]

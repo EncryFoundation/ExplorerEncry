@@ -2,7 +2,7 @@ package encry.blockchain.modifiers.boxes
 
 import com.google.common.primitives.Longs
 import encry.blockchain.modifiers.boxes.EncryBox.BxTypeId
-import io.circe.{Decoder, DecodingFailure, Encoder}
+import io.circe.{Decoder, DecodingFailure}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
 import org.encryfoundation.prismlang.core.{PConvertible, Types}
@@ -39,12 +39,6 @@ trait EncryBaseBox extends Box[EncryProposition] with PConvertible {
 }
 
 object EncryBaseBox {
-
-  implicit val jsonEncoder: Encoder[EncryBaseBox] = {
-    case ab: AssetBox         => AssetBox.jsonEncoder(ab)
-    case db: DataBox          => DataBox.jsonEncoder(db)
-    case aib: TokenIssuingBox => TokenIssuingBox.jsonEncoder(aib)
-  }
 
   implicit val jsonDecoder: Decoder[EncryBaseBox] = {
     Decoder.instance { c =>

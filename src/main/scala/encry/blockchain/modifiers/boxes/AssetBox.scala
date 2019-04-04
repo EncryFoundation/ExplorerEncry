@@ -36,15 +36,6 @@ object AssetBox {
 
   val TypeId: BxTypeId = 1.toByte
 
-  implicit val jsonEncoder: Encoder[AssetBox] = (bx: AssetBox) => Map(
-    "type" -> TypeId.asJson,
-    "id" -> Algos.encode(bx.id).asJson,
-    "proposition" -> bx.proposition.asJson,
-    "nonce" -> bx.nonce.asJson,
-    "value" -> bx.amount.asJson,
-    "tokenId" -> bx.tokenIdOpt.map(id => Algos.encode(id)).asJson
-  ).asJson
-
   implicit val jsonDecoder: Decoder[AssetBox] = (c: HCursor) => {
     for {
       proposition <- c.downField("proposition").as[EncryProposition]

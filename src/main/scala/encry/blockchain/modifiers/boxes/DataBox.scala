@@ -23,20 +23,12 @@ case class DataBox(override val proposition: EncryProposition,
     ), tpe)
 
   override def toDBBoxes: DBBoxGeneralizedClass =
-    DBBoxGeneralizedClass(Algos.encode(id),"",Algos.encode(proposition.contractHash), data = Algos.encode(data), nonce = nonce)
+    DBBoxGeneralizedClass(Algos.encode(id),"",Algos.encode(proposition.contractHash), Algos.encode(data), nonce)
 }
 
 object DataBox {
 
   val TypeId: BxTypeId = 4.toByte
-
-  implicit val jsonEncoder: Encoder[DataBox] = (bx: DataBox) => Map(
-    "type" -> TypeId.asJson,
-    "id" -> Algos.encode(bx.id).asJson,
-    "proposition" -> bx.proposition.asJson,
-    "nonce" -> bx.nonce.asJson,
-    "data" -> Algos.encode(bx.data).asJson,
-  ).asJson
 
   implicit val jsonDecoder: Decoder[DataBox] = (c: HCursor) => {
     for {

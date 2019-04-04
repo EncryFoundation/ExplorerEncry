@@ -16,10 +16,6 @@ object EncryProposition {
 
   case object UnlockFailedException extends Exception("Unlock failed")
 
-  implicit val jsonEncoder: Encoder[EncryProposition] = (p: EncryProposition) => Map(
-    "contractHash" -> Algos.encode(p.contractHash).asJson
-  ).asJson
-
   implicit val jsonDecoder: Decoder[EncryProposition] = (c: HCursor) =>
     for { contractHash <- c.downField("contractHash").as[String] }
       yield EncryProposition(Algos.decode(contractHash).getOrElse(Array.emptyByteArray))

@@ -23,14 +23,6 @@ object Directive {
 
   type DTypeId = Byte
 
-  implicit val jsonEncoder: Encoder[Directive] = {
-    case td: TransferDirective => TransferDirective.jsonEncoder(td)
-    case aid: AssetIssuingDirective => AssetIssuingDirective.jsonEncoder(aid)
-    case sad: ScriptedAssetDirective => ScriptedAssetDirective.jsonEncoder(sad)
-    case dad: DataDirective => DataDirective.jsonEncoder(dad)
-    case _ => throw new Exception("Incorrect directive type")
-  }
-
   implicit val jsonDecoder: Decoder[Directive] = {
     Decoder.instance { c =>
       c.downField("typeId").as[DTypeId] match {

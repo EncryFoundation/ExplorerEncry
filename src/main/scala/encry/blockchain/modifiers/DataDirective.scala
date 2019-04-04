@@ -26,12 +26,6 @@ case class DataDirective(contractHash: ContractHash, data: Array[Byte]) extends 
 object DataDirective {
   val TypeId: DTypeId = 5.toByte
 
-  implicit val jsonEncoder: Encoder[DataDirective] = (d: DataDirective) => Map(
-    "typeId" -> d.typeId.asJson,
-    "contractHash" -> Algos.encode(d.contractHash).asJson,
-    "data" -> Algos.encode(d.data).asJson
-  ).asJson
-
   implicit val jsonDecoder: Decoder[DataDirective] = (c: HCursor) => {
     for {
       contractHash <- c.downField("contractHash").as[String]

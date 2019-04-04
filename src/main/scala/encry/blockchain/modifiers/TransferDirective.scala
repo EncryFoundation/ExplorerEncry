@@ -32,13 +32,6 @@ object TransferDirective {
 
   val TypeId: DTypeId = 1.toByte
 
-  implicit val jsonEncoder: Encoder[TransferDirective] = (d: TransferDirective) => Map(
-    "typeId" -> d.typeId.asJson,
-    "address" -> d.address.toString.asJson,
-    "amount" -> d.amount.asJson,
-    "tokenId" -> d.tokenIdOpt.map(id => Algos.encode(id)).getOrElse("null").asJson
-  ).asJson
-
   implicit val jsonDecoder: Decoder[TransferDirective] = (c: HCursor) => {
     for {
       address <- c.downField("address").as[String]

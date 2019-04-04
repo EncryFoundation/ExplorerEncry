@@ -27,13 +27,6 @@ case class ScriptedAssetDirective(contractHash: ContractHash,
 object ScriptedAssetDirective{
   val TypeId: DTypeId = 3.toByte
 
-  implicit val jsonEncoder: Encoder[ScriptedAssetDirective] = (d: ScriptedAssetDirective) => Map(
-    "typeId" -> d.typeId.asJson,
-    "contractHash" -> Algos.encode(d.contractHash).asJson,
-    "amount" -> d.amount.asJson,
-    "tokenId" -> d.tokenIdOpt.map(id => Algos.encode(id)).asJson
-  ).asJson
-
   implicit val jsonDecoder: Decoder[ScriptedAssetDirective] = (c: HCursor) => for {
     contractHash <- c.downField("contractHash").as[String]
     amount <- c.downField("amount").as[Long]
