@@ -1,6 +1,7 @@
 package encry.blockchain.modifiers.boxes
 
-import io.circe.{Decoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.syntax._
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.core.Types
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
@@ -39,4 +40,12 @@ object DataBox {
       data
     )
   }
+
+  implicit val jsonEncoder: Encoder[DataBox] = (bx: DataBox) => Map(
+    "type" -> TypeId.asJson,
+    "id" -> Algos.encode(bx.id).asJson,
+    "proposition" -> bx.proposition.asJson,
+    "nonce" -> bx.nonce.asJson,
+    "data" -> Algos.encode(bx.data).asJson,
+  ).asJson
 }

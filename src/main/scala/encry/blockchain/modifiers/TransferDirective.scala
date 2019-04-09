@@ -4,12 +4,14 @@ import com.google.common.primitives.Ints
 import io.circe.syntax._
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.{AssetBox, EncryBaseBox, EncryProposition}
+import encry.utils.CoreTaggedTypes.ModifierId
 import encry.utils.Utils
 import io.circe.{Decoder, Encoder, HCursor}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.common.transaction.EncryAddress
 import org.encryfoundation.common.transaction.EncryAddress.Address
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
+import scorex.crypto.encode.Base16
 import scorex.crypto.hash.Digest32
 
 case class TransferDirective(address: Address,
@@ -25,6 +27,9 @@ case class TransferDirective(address: Address,
   override def boxes(digest: Digest32, idx: Int): EncryBaseBox =
     AssetBox(EncryProposition.addressLocked(address),
       Utils.nonceFromDigest(digest ++ Ints.toByteArray(idx)), amount, tokenIdOpt)
+
+  override def toDbVersion(txId: Array[Byte], numberInTx: Int): DirectiveDBVersion =
+    DirectiveDBVersion(Base16.encode(txId), numberInTx, typeId, isValid, "", amount, address, tokenIdOpt.map(Base16.encode), "")
 
 }
 
@@ -43,4 +48,11 @@ object TransferDirective {
       tokenIdOpt.flatMap(id => Algos.decode(id).map(ADKey @@ _).toOption)
     )
   }
+
+  implicit val jsonEncoder: Encoder[TransferDirective] = (d: TransferDirective) => Map(
+    "typeId" -> d.typeId.asJson,
+    "address" -> d.address.toString.asJson,
+    "amount" -> d.amount.asJson,
+    "tokenId" -> d.tokenIdOpt.map(id => Algos.encode(id)).getOrElse("null").asJson
+  ).asJson
 }
