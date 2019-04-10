@@ -37,4 +37,5 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
 
   def getPeers: Either[Error, List[Peer]] =
     makeGetRequest[List[Peer]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/peers/connected")
+
 }
