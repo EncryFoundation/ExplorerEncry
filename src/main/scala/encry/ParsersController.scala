@@ -6,7 +6,6 @@ import encry.parser.NodeParser
 import encry.settings.ParseSettings
 import ExplorerApp._
 import com.typesafe.scalalogging.StrictLogging
-import encry.parser.NodeParser.PeersList
 
 class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Actor with StrictLogging {
 

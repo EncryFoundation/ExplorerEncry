@@ -1,19 +1,14 @@
 package encry.database
 
 import java.net.{InetAddress, InetSocketAddress}
-
-import akka.actor
 import akka.actor.Actor
-import akka.stream.StreamRefMessages.ActorRef
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
-import encry.parser.NodeParser
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
 import encry.settings.DatabaseSettings
-
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 
 class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
 
