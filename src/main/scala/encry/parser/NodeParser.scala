@@ -41,7 +41,6 @@ class NodeParser(node: InetSocketAddress,
 
   def prepareCycle: Receive = {
     case PingNode =>
-      println("PingNode1")
       parserRequests.getInfo match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(infoRoute) =>
@@ -57,7 +56,6 @@ class NodeParser(node: InetSocketAddress,
 
   def workingCycle: Receive = {
     case PingNode =>
-      println("PingNode2")
       parserRequests.getInfo match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(newInfoRoute) => if (newInfoRoute == currentNodeInfo)
@@ -145,7 +143,6 @@ class NodeParser(node: InetSocketAddress,
                 dbActor ! BlockFromNode(block, node)
                 context.become(awaitDb)
               }
-            //else context.become(workingCycle)
           }
         )
     }
