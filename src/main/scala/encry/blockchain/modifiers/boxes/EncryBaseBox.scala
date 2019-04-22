@@ -1,7 +1,7 @@
 package encry.blockchain.modifiers.boxes
 
 import com.google.common.primitives.Longs
-import io.circe.{Decoder, DecodingFailure}
+import io.circe.{Decoder, DecodingFailure, Encoder}
 import org.encryfoundation.common.Algos
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
 import org.encryfoundation.prismlang.core.{PConvertible, Types}
@@ -51,5 +51,10 @@ object EncryBaseBox {
         case Left(_) => Left(DecodingFailure("None typeId", c.history))
       }
     }
+  }
+  implicit val jsonEncoder: Encoder[EncryBaseBox] = {
+    case ab: AssetBox         => AssetBox.jsonEncoder(ab)
+    case db: DataBox          => DataBox.jsonEncoder(db)
+    case aib: TokenIssuingBox => TokenIssuingBox.jsonEncoder(aib)
   }
 }

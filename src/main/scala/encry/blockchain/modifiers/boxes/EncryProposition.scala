@@ -20,6 +20,10 @@ object EncryProposition {
     for { contractHash <- c.downField("contractHash").as[String] }
       yield EncryProposition(Algos.decode(contractHash).getOrElse(Array.emptyByteArray))
 
+  implicit val jsonEncoder: Encoder[EncryProposition] = (p: EncryProposition) => Map(
+    "contractHash" -> Algos.encode(p.contractHash).asJson
+  ).asJson
+
   def open: EncryProposition = EncryProposition(OpenContract.contract.hash)
   def pubKeyLocked(pubKey: PublicKey): EncryProposition = EncryProposition(PubKeyLockedContract(pubKey).contract.hash)
   def addressLocked(address: Address): EncryProposition = EncryAddress.resolveAddress(address).map {

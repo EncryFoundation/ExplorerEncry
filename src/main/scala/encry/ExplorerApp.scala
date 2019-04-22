@@ -17,5 +17,4 @@ object  ExplorerApp extends App {
 
   val dbActor = system.actorOf(Props(new DBActor(settings.databaseSettings)), s"dbActor")
   system.actorOf(Props(new ParsersController(settings.parseSettings, dbActor)), s"parserController")
-
 }

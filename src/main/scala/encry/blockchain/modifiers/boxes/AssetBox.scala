@@ -2,7 +2,8 @@ package encry.blockchain.modifiers.boxes
 
 import encry.blockchain.modifiers.boxes.Box.Amount
 import encry.settings.Constants
-import io.circe.{Decoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.syntax._
 import org.encryfoundation.common.Algos
 import org.encryfoundation.prismlang.core.Types
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
@@ -47,4 +48,13 @@ object AssetBox {
       tokenIdOpt.map(str => Algos.decode(str).getOrElse(Array.emptyByteArray))
     )
   }
+
+  implicit val jsonEncoder: Encoder[AssetBox] = (bx: AssetBox) => Map(
+    "type" -> TypeId.asJson,
+    "id" -> Algos.encode(bx.id).asJson,
+    "proposition" -> bx.proposition.asJson,
+    "nonce" -> bx.nonce.asJson,
+    "value" -> bx.amount.asJson,
+    "tokenId" -> bx.tokenIdOpt.map(id => Algos.encode(id)).asJson
+  ).asJson
 }
