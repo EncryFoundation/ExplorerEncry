@@ -7,7 +7,7 @@ import scalaj.http._
 import InfoRoute._
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.Block._
-import encry.blockchain.modifiers.Block
+import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.apiEntities.Peer
 import scala.io.Source
 
@@ -30,12 +30,12 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
   def getBlocksAtHeight(height: Int): Either[Error, List[String]] =
     makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/at/$height")
 
-
   def getLastIds(qty: Int, maxHeight: Int): Either[Error, List[String]] =
     makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history?limit=$qty&offset=${maxHeight - qty + 1}")
-
 
   def getPeers: Either[Error, List[Peer]] =
     makeGetRequest[List[Peer]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/peers/connected")
 
+  def getHeaders(height: Int): Either[Error, List[Header]]=
+    makeGetRequest[List[Header]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/lastHeaders/$height")
 }

@@ -6,13 +6,12 @@ import encry.parser.NodeParser
 import encry.settings.ParseSettings
 import ExplorerApp._
 import com.typesafe.scalalogging.StrictLogging
-import encry.parser.NodeParser.PeersList
 
 class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Actor with StrictLogging {
 
   override def preStart(): Unit = {
     settings.nodes.foreach(node =>
-      system.actorOf(Props(new NodeParser(node, self, dbActor)).withDispatcher("parser-dispatcher"),
+      system.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"),
         s"ParserFor${node.getHostName}")
     )
   }
