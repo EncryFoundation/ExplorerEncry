@@ -12,9 +12,8 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
 
   override def preStart(): Unit = {
     settings.nodes.foreach(node =>
-      system.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"),
-        s"ParserFor${node.getHostName}")
-    )
+      system.actorOf(NodeParser.props(node, self, dbActor, settings).withDispatcher("parser-dispatcher"),
+      s"ParserFor${node.getHostName}"))
   }
   var currentListeningPeers: List[InetAddress] = List.empty[InetAddress]
 

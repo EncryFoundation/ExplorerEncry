@@ -4,21 +4,24 @@ import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.concurrent.duration._
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.blockchain.nodeRoutes.apiEntities.Peer
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
 import encry.parser.NodeParser._
 import encry.settings.ParseSettings
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
+import scala.util.Try
 
-class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: ActorRef, settings: ParseSettings) extends Actor with StrictLogging {
+class NodeParser(node: InetSocketAddress,
+                 parserContoller: ActorRef,
+                 dbActor: ActorRef,
+                 settings: ParseSettings,
+                 parserRequests: ParserRequests) extends Actor with StrictLogging {
 
-  val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
   var currentNodeBestBlock: Block = Block.empty
   var currentNodeBestBlockId: String = ""
@@ -39,7 +42,8 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
 
   def prepareCycle: Receive = {
     case PingNode =>
-      println("PingNode1")
+      println("PingNode1 " + Try(PingNode.getClass))
+
       parserRequests.getInfo match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(infoRoute) =>
@@ -49,30 +53,34 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
     case SetNodeParams(bestBlock, bestHeight) =>
       currentNodeBestBlockId = bestBlock
       currentBestBlockHeight = bestHeight
-      println(currentBestBlockHeight + " PingNode")
-     // println(bestHeight + " PingNode")
+      println(currentBestBlockHeight + " PingNode " + Try(SetNodeParams.getClass))
+      // println(bestHeight + " PingNode")
       logger.info(s"Get currentNodeBestBlockId: $currentNodeBestBlockId. currentBestBlockHeight: $currentBestBlockHeight")
       context.become(workingCycle)
   }
 
   def workingCycle: Receive = {
     case PingNode =>
-      println("PingNode2")
+      println("PingNode2 " + Try(PingNode.getClass))
       parserRequests.getInfo match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
-        case Right(newInfoRoute) => if (newInfoRoute == currentNodeInfo)
-          logger.info(s"info route on node $node don't change")
-        else {
-          logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
-          currentNodeInfo = newInfoRoute
-          if (currentNodeInfo.fullHeight > currentBestBlockHeight) self ! Recover
-        }
+        case Right(newInfoRoute) =>
+          if (newInfoRoute == currentNodeInfo)
+            logger.info(s"info route on node $node don't change")
+          else {
+            logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
+            currentNodeInfo = newInfoRoute
+            if (currentNodeInfo.fullHeight > currentBestBlockHeight) self ! Recover
+          }
+        case a => println(s"qwer ${Try(a.getClass)}")
       }
+//      println("1243")
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(newLastHeaders) =>
           if (isRecovering.get() || currentBestBlockHeight != currentNodeInfo.fullHeight) {
             logger.info("Get last headers, but node is recovering, so ignore them")
+          }
           else {
             if (lastIds.nonEmpty) {
               val commonPoint = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
@@ -83,15 +91,18 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
+      println("1243fhgklh")
       parserRequests.getPeers match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(peersList) =>
           parserContoller ! PeersList(peersList.collect {
             case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
           })
-          logger.info(s"Send peer list: ${peersList.collect {
-            case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
-          }} to parserContoller.")
+          logger.info(s"Send peer list: ${
+            peersList.collect {
+              case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
+            }
+          } to parserContoller.")
 
       }
     case ResolveFork(fromBlock, toDel) =>
@@ -133,15 +144,14 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
         parserRequests.getBlock(blockId) match {
           case Left(err) => logger.info(s"Error during getting block $blockId: ${err.getMessage}")
           case Right(block) =>
-            if (currentBestBlockHeight != (start + settings.recoverBatchSize))
-            {
+            if (currentBestBlockHeight != (start + settings.recoverBatchSize)) {
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight = block.header.height
               println(currentBestBlockHeight + " recover")
               dbActor ! BlockFromNode(block, node)
               context.become(awaitDb)
             }
-            //else context.become(workingCycle)
+          //else context.become(workingCycle)
         }
       )
     }
@@ -150,7 +160,9 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
 
   def awaitDb: Receive = {
     case GetCurrentHeight(height: Int) =>
-      if (height == currentBestBlockHeight) {context.become(workingCycle)}
+      if (height == currentBestBlockHeight) {
+        context.become(workingCycle)
+      }
       println(height + " height")
     case _ =>
   }
@@ -159,6 +171,12 @@ class NodeParser(node: InetSocketAddress, parserContoller: ActorRef, dbActor: Ac
 
 
 object NodeParser {
+
+  def props(node: InetSocketAddress,
+            parserContoller: ActorRef,
+            dbActor: ActorRef,
+            settings: ParseSettings) =
+    Props(new NodeParser(node, parserContoller, dbActor, settings, ParserRequests(node)))
 
   case class PeersList(peers: List[InetAddress])
 

@@ -20,6 +20,16 @@ val databaseDependencies = Seq(
   "org.tpolecat" %% "doobie-hikari" % doobieVersion
 )
 
+val testingDependencies = Seq(
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.+" % Test,
+  "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % Test,
+  "org.scalacheck" %% "scalacheck" % "1.13.+" % Test,
+  "org.mockito" % "mockito-core" % "2.19.1" % Test,
+  "org.scalatest" %% "scalatest" % "3.0.5",
+  "org.scalactic" %% "scalactic" % "3.0.5",
+  "org.openjdk.jmh" % "jmh-generator-annprocess" % "1.21" % Test
+)
+
 val apiDependencies = Seq(
   "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
 )
@@ -39,9 +49,10 @@ val loggingDependencies = Seq(
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+  "org.scalamock" %% "scalamock" % "4.1.0" % Test,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.iheart" %% "ficus" % "1.4.2",
-) ++ apiDependencies ++ loggingDependencies ++ databaseDependencies
+) ++ apiDependencies ++ loggingDependencies ++ databaseDependencies ++ testingDependencies
 
 fork := true
 
