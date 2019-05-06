@@ -29,8 +29,8 @@ with MockFactory{
     val dbActor: ActorRef = TestProbe().ref
     val settings: ExplorerSettings = ExplorerSettings.read
     val parserRequestsStab: ParserRequests = stub[ParserRequests]
-//    val parserRequestsMock: ParserRequests = mock[ParserRequests]
-   // val lastIds: List[String] = List("2", "3", "100")
+  // val parserRequestsMock: ParserRequests = mock[ParserRequests]
+  // val lastIds: List[String] = List("2", "3", "100")
     val isRecovering: AtomicBoolean = new AtomicBoolean(true)
     val nodeParser: TestActorRef[NodeParser] =
       TestActorRef[NodeParser](Props(new NodeParser(node, parsersController, dbActor, settings.parseSettings, parserRequestsStab)))
@@ -40,6 +40,7 @@ with MockFactory{
       nodeParser ! PingNode
       nodeParser ! SetNodeParams("123456", 200)
       nodeParser ! PingNode
+      parserRequestsStab.getInfo _ when() returns Right(InfoRoute.empty)
       //parserRequestsStab.getInfo _ returns Right(List("1", "2", "3"))
       parserRequestsStab.getLastIds _ when(3, 50) returns Right(List("1", "2", "3"))
      // assert(nodeParser.underlyingActor.lastIds.)
