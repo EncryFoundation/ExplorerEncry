@@ -71,7 +71,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(newLastHeaders) =>
-          if (isRecovering.get() || currentBestBlockHeight != currentNodeInfo.fullHeight)
+          if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
             if (lastIds.nonEmpty) {
@@ -127,7 +127,7 @@ class NodeParser(node: InetSocketAddress,
   def recoverNodeChain(start: Int, end: Int): Unit = {
     Future {
       isRecovering.set(true)
-      (start to end).foreach {
+      (start to (start + settings.recoverBatchSize)).foreach {
         height =>
           val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
             case Left(err) => logger.info(s"Err: $err during get block at height $height")
@@ -140,9 +140,12 @@ class NodeParser(node: InetSocketAddress,
                 err.getMessage
               }")
               case Right(block) =>
-                currentNodeBestBlockId = block.header.id
-                currentBestBlockHeight.set(block.header.height)
-                dbActor ! BlockFromNode(block, node)
+                if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
+                  currentNodeBestBlockId = block.header.id
+                  currentBestBlockHeight.set(block.header.height)
+                  dbActor ! BlockFromNode(block, node)
+                  context.become(awaitDb)
+                }
             }
           )
       }
@@ -152,8 +155,9 @@ class NodeParser(node: InetSocketAddress,
 
   def awaitDb: Receive = {
     case GetCurrentHeight(height: Int) =>
-      if (height == currentBestBlockHeight) {
+      if (height == currentBestBlockHeight.get()) {
         context.become(workingCycle)
+        if (height != currentNodeInfo.fullHeight) { self ! Recover }
       }
     case _ =>
   }
