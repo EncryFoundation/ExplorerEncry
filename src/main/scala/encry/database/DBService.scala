@@ -18,7 +18,6 @@ import Queries._
 import encry.blockchain.modifiers.Block
 import encry.database.data.Node
 
-
 case class DBService(settings: DatabaseSettings) extends StrictLogging {
 
   private lazy val dataSource = new HikariDataSource

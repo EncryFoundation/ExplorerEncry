@@ -28,7 +28,7 @@ case class AssetBox(override val proposition: EncryProposition,
     ), tpe)
 
   override def toDBBoxes: DBBoxGeneralizedClass =
-    DBBoxGeneralizedClass(Algos.encode(id), Algos.encode(tokenIdOpt.getOrElse(Constants.IntrinsicTokenId)), Algos.encode(proposition.contractHash),nonce = nonce)
+    DBBoxGeneralizedClass(Algos.encode(id), AssetBox.TypeId, Algos.encode(tokenIdOpt.getOrElse(Constants.IntrinsicTokenId)), Algos.encode(proposition.contractHash),nonce = nonce)
 }
 
 object AssetBox {

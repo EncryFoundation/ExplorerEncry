@@ -26,7 +26,7 @@ case class TokenIssuingBox(override val proposition: EncryProposition,
     ), tpe)
 
   override def toDBBoxes: DBBoxGeneralizedClass =
-    DBBoxGeneralizedClass(Algos.encode(id),Algos.encode(tokenId),Algos.encode(proposition.contractHash),nonce = nonce)
+    DBBoxGeneralizedClass(Algos.encode(id), TokenIssuingBox.TypeId, Algos.encode(tokenId),Algos.encode(proposition.contractHash),nonce = nonce)
 }
 
 object TokenIssuingBox {
