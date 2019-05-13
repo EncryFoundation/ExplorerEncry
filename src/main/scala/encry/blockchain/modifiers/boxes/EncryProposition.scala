@@ -10,8 +10,6 @@ import scorex.crypto.signatures.PublicKey
 
 case class EncryProposition(contractHash: ContractHash)
 
-
-
 object EncryProposition {
 
   case object UnlockFailedException extends Exception("Unlock failed")
