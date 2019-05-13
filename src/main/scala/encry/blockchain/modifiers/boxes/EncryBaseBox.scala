@@ -8,6 +8,7 @@ import org.encryfoundation.prismlang.core.{PConvertible, Types}
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
 
 case class DBBoxGeneralizedClass(id: String = "",
+                                 boxType: Byte = 0: Byte,
                                  coinId: String = "",
                                  contractHash: String = "",
                                  data: String = "-",

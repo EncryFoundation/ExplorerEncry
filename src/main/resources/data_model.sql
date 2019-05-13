@@ -70,8 +70,10 @@ CREATE TABLE tokens(
 
 CREATE TABLE outputs(
   id VARCHAR(64) PRIMARY KEY,
+  boxType INT NOT NULL,
   txId VARCHAR(64) REFERENCES transactions (id),
   monetaryValue BIGINT NOT NULL,
+  nonce BIGINT NOT NULL,
   coinId VARCHAR(64) REFERENCES tokens (id),
   contractHash VARCHAR(64) REFERENCES accounts (contractHash),
   data VARCHAR(1024),

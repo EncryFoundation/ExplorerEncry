@@ -1,9 +1,11 @@
 package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+
+import akka.actor.SupervisorStrategy.Resume
 import scala.concurrent.duration._
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, OneForOneStrategy, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
@@ -11,8 +13,8 @@ import encry.blockchain.nodeRoutes.apiEntities.Peer
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
 import encry.parser.NodeParser._
 import encry.settings.ParseSettings
-
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.language.postfixOps
 
 class NodeParser(node: InetSocketAddress,
@@ -24,7 +26,7 @@ class NodeParser(node: InetSocketAddress,
   var currentNodeInfo: InfoRoute = InfoRoute.empty
   var currentNodeBestBlock: Block = Block.empty
   var currentNodeBestBlockId: String = ""
-  var currentBestBlockHeight: Int = -1
+  var currentBestBlockHeight: AtomicInteger = new AtomicInteger(-1)
   val isRecovering: AtomicBoolean = new AtomicBoolean(false)
   var lastIds: List[String] = List.empty[String]
   var lastHeaders: List[Header] = List.empty[Header]
@@ -49,7 +51,7 @@ class NodeParser(node: InetSocketAddress,
       }
     case SetNodeParams(bestBlock, bestHeight) =>
       currentNodeBestBlockId = bestBlock
-      currentBestBlockHeight = bestHeight
+      currentBestBlockHeight.set(bestHeight)
       logger.info(s"Get currentNodeBestBlockId: $currentNodeBestBlockId. currentBestBlockHeight: $currentBestBlockHeight")
       context.become(workingCycle)
   }
@@ -63,13 +65,13 @@ class NodeParser(node: InetSocketAddress,
         else {
           logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
           currentNodeInfo = newInfoRoute
-          if (currentNodeInfo.fullHeight > currentBestBlockHeight) self ! Recover
+          if (currentNodeInfo.fullHeight > currentBestBlockHeight.get()) self ! Recover
         }
       }
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(newLastHeaders) =>
-          if (isRecovering.get() || currentBestBlockHeight != currentNodeInfo.fullHeight)
+          if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
             if (lastIds.nonEmpty) {
@@ -100,12 +102,12 @@ class NodeParser(node: InetSocketAddress,
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(block) =>
           currentNodeBestBlockId = block.header.id
-          currentBestBlockHeight = block.header.height
+          currentBestBlockHeight.set(block.header.height)
           dbActor ! DropBlocksFromNode(node, toDel)
           self ! Recover
       }
     case Recover if !isRecovering.get() =>
-      recoverNodeChain(currentBestBlockHeight + 1, currentNodeInfo.fullHeight)
+      recoverNodeChain(currentBestBlockHeight.get(), currentNodeInfo.fullHeight)
     case Recover => logger.info("Trying to recover, but recovering process is started")
     case _ =>
   }
@@ -123,36 +125,39 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def recoverNodeChain(start: Int, end: Int): Unit = {
-    isRecovering.set(true)
-    (start to (start + settings.recoverBatchSize)).foreach {
-      height =>
-        val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
-          case Left(err) => logger.info(s"Err: $err during get block at height $height")
-            List.empty
-          case Right(blocks) => blocks
-        }
-        blocksAtHeight.headOption.foreach(blockId =>
-          parserRequests.getBlock(blockId) match {
-            case Left(err) => logger.info(s"Error during getting block $blockId: ${
-              err.getMessage
-            }")
-            case Right(block) =>
-              if (currentBestBlockHeight != (start + settings.recoverBatchSize)) {
-                currentNodeBestBlockId = block.header.id
-                currentBestBlockHeight = block.header.height
-                dbActor ! BlockFromNode(block, node)
-                context.become(awaitDb)
-              }
+    Future {
+      isRecovering.set(true)
+      (start to (start + settings.recoverBatchSize)).foreach {
+        height =>
+          val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
+            case Left(err) => logger.info(s"Err: $err during get block at height $height")
+              List.empty
+            case Right(blocks) => blocks
           }
-        )
+          blocksAtHeight.headOption.foreach(blockId =>
+            parserRequests.getBlock(blockId) match {
+              case Left(err) => logger.info(s"Error during getting block $blockId: ${
+                err.getMessage
+              }")
+              case Right(block) =>
+                if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
+                  currentNodeBestBlockId = block.header.id
+                  currentBestBlockHeight.set(block.header.height)
+                  dbActor ! BlockFromNode(block, node)
+                  context.become(awaitDb)
+                }
+            }
+          )
+      }
+      isRecovering.set(false)
     }
-    isRecovering.set(false)
   }
 
   def awaitDb: Receive = {
     case GetCurrentHeight(height: Int) =>
-      if (height == currentBestBlockHeight) {
+      if (height == currentBestBlockHeight.get()) {
         context.become(workingCycle)
+        if (height != currentNodeInfo.fullHeight) { self ! Recover }
       }
     case _ =>
   }

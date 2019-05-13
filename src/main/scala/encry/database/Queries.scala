@@ -97,8 +97,8 @@ object Queries extends StrictLogging {
   private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
     val query: String =
       """
-        |INSERT INTO public.outputs (id, txId, monetaryValue, coinId, contractHash, data, isActive, minerAddress)
-        |VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+        |INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress)
+        |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBOutput](query).updateMany(outputs)
   }

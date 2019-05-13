@@ -22,7 +22,7 @@ case class DataBox(override val proposition: EncryProposition,
     ), tpe)
 
   override def toDBBoxes: DBBoxGeneralizedClass =
-    DBBoxGeneralizedClass(Algos.encode(id),"",Algos.encode(proposition.contractHash), Algos.encode(data), nonce)
+    DBBoxGeneralizedClass(Algos.encode(id), DataBox.TypeId, "", Algos.encode(proposition.contractHash), Algos.encode(data), nonce)
 }
 
 object DataBox {
