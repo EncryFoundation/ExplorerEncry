@@ -19,12 +19,12 @@ object DataBoxAPI {
       id          <- c.downField("id").as[String]
       proposition <- c.downField("proposition").as[Proposition]
       nonce       <- c.downField("nonce").as[Long]
-      data        <- c.downField("data").as[Array[Byte]]
+      data        <- c.downField("data").as[String]
     } yield DataBoxAPI(
       id,
       proposition.contractHash,
       nonce,
-      data.toString
+      data
     )
   }
 }
