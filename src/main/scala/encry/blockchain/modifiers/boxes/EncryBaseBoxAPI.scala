@@ -19,7 +19,7 @@ object EncryBaseBoxAPI {
     Decoder.instance { c =>
       c.downField("type").as[Byte] match {
         case Right(s) => s match {
-          case AssetBoxAPIAPI.TypeId        => AssetBoxAPIAPI.jsonDecoder(c)
+          case AssetBoxAPIAPI.TypeId     => AssetBoxAPIAPI.jsonDecoder(c)
           case DataBoxAPI.TypeId         => DataBoxAPI.jsonDecoder(c)
           case TokenIssuingBoxAPI.TypeId => TokenIssuingBoxAPI.jsonDecoder(c)
           case _ => Left(DecodingFailure("Incorrect directive typeID", c.history))

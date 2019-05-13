@@ -12,17 +12,17 @@ case class DataBoxAPI(override val id: String,
 
 object DataBoxAPI {
 
-  val TypeId = 4.toByte
+  val TypeId: Byte = 4.toByte
 
   implicit val jsonDecoder: Decoder[DataBoxAPI] = (c: HCursor) => {
     for {
       id          <- c.downField("id").as[String]
-      proposition <- c.downField("proposition").as[String]
+      proposition <- c.downField("proposition").as[Proposition]
       nonce       <- c.downField("nonce").as[Long]
       data        <- c.downField("data").as[Array[Byte]]
     } yield DataBoxAPI(
       id,
-      proposition,
+      proposition.contractHash,
       nonce,
       data.toString
     )
