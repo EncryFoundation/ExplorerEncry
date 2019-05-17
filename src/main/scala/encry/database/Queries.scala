@@ -27,7 +27,7 @@ object Queries extends StrictLogging {
     outputs           <- insertOutputsQuery(block.getDbOutputs)
     outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
     dir               <- insertDirectivesQuery(block.payload.txs)
-    _                 <- updateNode(block, node)
+//    _                 <- updateNode(block, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {

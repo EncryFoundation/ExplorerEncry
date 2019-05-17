@@ -93,8 +93,7 @@ class NodeParser(node: InetSocketAddress,
             peersList.collect {
               case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
             }
-          } to parserContoller.")
-
+          } to parserController.")
       }
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
