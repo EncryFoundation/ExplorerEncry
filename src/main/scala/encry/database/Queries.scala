@@ -15,7 +15,7 @@ import org.encryfoundation.common.Algos
 
 object Queries extends StrictLogging {
 
-  def proccessBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
+  def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
     header            <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader      <- insertNodeToHeader(block.header, node)
     txs               <- insertTransactionsQuery(block)
