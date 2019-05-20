@@ -142,7 +142,7 @@ class NodeParser(node: InetSocketAddress,
                 if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
                   currentNodeBestBlockId = block.header.id
                   currentBestBlockHeight.set(block.header.height)
-                  dbActor ! BlockFromNode(block, node)
+                  dbActor ! BlockFromNode(block, node, currentNodeInfo)
                   context.become(awaitDb)
                 }
             }
@@ -176,7 +176,7 @@ object NodeParser {
 
   case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
 
-  case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress)
+  case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute)
 
   case class ResolveFork(fromBlock: String, toDel: List[String])
 

@@ -15,7 +15,7 @@ import org.encryfoundation.common.Algos
 
 object Queries extends StrictLogging {
 
-  def proccessBlock(block: Block, node: InetSocketAddress): ConnectionIO[Int] = for {
+  def proccessBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
     header            <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader      <- insertNodeToHeader(block.header, node)
     txs               <- insertTransactionsQuery(block)
@@ -27,7 +27,7 @@ object Queries extends StrictLogging {
     outputs           <- insertOutputsQuery(block.getDbOutputs)
     outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
     dir               <- insertDirectivesQuery(block.payload.txs)
-//    _                 <- updateNode(block, node)
+    _                 <- updateNode(nodeInfo, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
@@ -37,14 +37,18 @@ object Queries extends StrictLogging {
 
   def insertNode(addr: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = {
     val nodeIns = Node(addr, nodeInfo)
-    val query = "INSERT INTO public.nodes (ip, status, lastFullBlock, lastFullHeight) VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO " +
-      "UPDATE SET status = true"
+    val query =
+      s"""
+         |INSERT INTO public.nodes (ip, status, lastFullBlock, lastFullHeight)
+         |VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO UPDATE SET status = true,
+         |lastFullBlock = '${nodeIns.lastFullBlock}', lastFullHeight = ${nodeIns.lastFullHeight};
+         """.stripMargin
     Update[Node](query).run(nodeIns)
   }
 
-  def updateNode(block: Block, address: InetSocketAddress): ConnectionIO[Int] = {
+  def updateNode(nodeInfo: InfoRoute, address: InetSocketAddress): ConnectionIO[Int] = {
     val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
-    Update[(String, Int, String)](query).run(block.header.id, block.header.height, address.getAddress.getHostName)
+    Update[(String, Int, String)](query).run(nodeInfo.bestFullHeaderId, nodeInfo.fullHeight, address.getAddress.getHostName)
   }
 
   def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
