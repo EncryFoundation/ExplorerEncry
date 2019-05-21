@@ -87,7 +87,8 @@ class NodeParser(node: InetSocketAddress,
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(peersList) =>
           parserContoller ! PeersList(peersList.collect {
-            case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
+            case peer  => {
+              peer.address.getAddress}
           })
           logger.info(s"Send peer list: ${
             peersList.collect {

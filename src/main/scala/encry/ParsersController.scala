@@ -19,20 +19,22 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
     }
   }
 
-  override def preStart(): Unit = {
-    settings.nodes.foreach(node =>
-     context.system.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"),
-        s"ParserFor${node.getHostName}")
-    )
-  }
   var currentListeningPeers: List[InetAddress] = List.empty[InetAddress]
+
+  override def preStart(): Unit = {
+    settings.nodes.foreach { node =>
+      currentListeningPeers == currentListeningPeers ++: List(node.getAddress)
+      context.system.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"),
+        s"ParserFor${node.getHostName}")
+    }
+  }
 
   override def receive: Receive = {
     case PeersList(peers) =>
       val fp: List[InetAddress] = peers.diff(currentListeningPeers)
       fp.foreach { peer =>
         context.system.actorOf(Props(new SimpleNodeParser(new InetSocketAddress(peer, 9051), self, dbActor, settings)),
-          s"ParserFor${peer.getHostName}")
+          s"SimpleParserFor${peer.getHostName}")
               }
         currentListeningPeers = currentListeningPeers ++: fp
     case _ =>

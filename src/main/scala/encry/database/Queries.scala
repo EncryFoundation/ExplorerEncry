@@ -27,7 +27,7 @@ object Queries extends StrictLogging {
     outputs           <- insertOutputsQuery(block.getDbOutputs)
     outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
     dir               <- insertDirectivesQuery(block.payload.txs)
-    _                 <- updateNode(nodeInfo, node)
+   // _                 <- updateNode(nodeInfo, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
@@ -46,10 +46,10 @@ object Queries extends StrictLogging {
     Update[Node](query).run(nodeIns)
   }
 
-  def updateNode(nodeInfo: InfoRoute, address: InetSocketAddress): ConnectionIO[Int] = {
-    val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
-    Update[(String, Int, String)](query).run(nodeInfo.bestFullHeaderId, nodeInfo.fullHeight, address.getAddress.getHostName)
-  }
+//  def updateNode(nodeInfo: InfoRoute, address: InetSocketAddress): ConnectionIO[Int] = {
+//    val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
+//    Update[(String, Int, String)](query).run(nodeInfo.bestFullHeaderId, nodeInfo.fullHeight, address.getAddress.getHostName)
+//  }
 
   def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
     val query: String =
