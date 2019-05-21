@@ -2,7 +2,6 @@ package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
-
 import akka.actor.SupervisorStrategy.Resume
 import scala.concurrent.duration._
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, SupervisorStrategy}
