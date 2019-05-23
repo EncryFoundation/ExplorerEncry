@@ -30,9 +30,9 @@ object Queries extends StrictLogging {
    // _                 <- updateNode(nodeInfo, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
-  def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
+  def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
     val test = addr.getAddress.getHostName
-    sql"""SELECT * FROM public.nodes WHERE ip = $test;""".query[Node].option
+    sql"""SELECT * FROM public.headers ORDER BY height DESC LIMIT 1;""".query[Header].option
   }
 
   def insertNode(addr: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = {
@@ -148,7 +148,7 @@ object Queries extends StrictLogging {
   }
 
   def dropHeaderFromNode(headerId: String, addr: InetSocketAddress): ConnectionIO[Int] = {
-    sql"""DELETE FROM public.headerToNode WHERE id = $headerId, nodeIp = ${addr.getAddress.getHostAddress};""".query[Int].unique
+    sql"""DELETE FROM public.headers WHERE id = $headerId;""".query[Int].unique
   }
 
   private def insertDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {

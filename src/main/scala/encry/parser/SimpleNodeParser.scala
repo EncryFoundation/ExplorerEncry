@@ -50,7 +50,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         case Right(peersList) =>
           parserController ! PeersList(peersList.collect {
             case peer  => {
-              println(s"${peer.address.getAddress}  111")
+             // println(s"${peer.address.getAddress}  111")
               peer.address.getAddress}
           })
           logger.info(s"Send peer list: ${

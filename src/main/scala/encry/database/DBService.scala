@@ -15,7 +15,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext.Implicits.global
 import Queries._
-import encry.blockchain.modifiers.Block
+import encry.blockchain.modifiers.{Block, Header}
 import encry.database.data.Node
 
 case class DBService(settings: DatabaseSettings) extends StrictLogging {
@@ -34,7 +34,7 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     pgTransactor.shutdown.unsafeToFuture
   }
 
-  def getNodeInfo(addr: InetSocketAddress): Future[Option[Node]] = {
+  def getNodeInfo(addr: InetSocketAddress): Future[Option[Header]] = {
     runAsync(nodeInfoQuery(addr), "nodeInfo")
   }
 
@@ -45,12 +45,12 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
   def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Int] =
     runAsync(insertNode(addr, infoRoute), "activateNode")
 
-  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Node]] = {
+  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Header]] = {
     val res = Await.result(getNodeInfo(addr), 3.minutes)
     res match {
       case Some(info) => Future.successful(Some(info))
       case None => activateNode(addr, InfoRoute.empty)
-        Future.successful(Some(Node.empty(addr)))
+        Future.successful(Some(Header.empty))
     }
   }
 

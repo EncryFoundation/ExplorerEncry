@@ -70,15 +70,21 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(newLastHeaders) =>
+          println(s"${currentBestBlockHeight.get()}  /  ${currentNodeInfo.fullHeight}")
+          println(s"${isRecovering.get()}")
           if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
+            println("else loop")
             if (lastIds.nonEmpty) {
-              val commonPoint = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
-              val toDel = lastIds.reverse.takeWhile(_ != commonPoint)
+              println("if loop")
+              val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
+              val toDel: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
+              println(s"common point = $commonPoint / toDel = $toDel")
               if (toDel.nonEmpty) self ! ResolveFork(commonPoint, toDel)
             }
             lastIds = newLastHeaders
+            println(s"lastIds = $lastIds")
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
@@ -91,7 +97,7 @@ class NodeParser(node: InetSocketAddress,
           })
           logger.info(s"Send peer list: ${
             peersList.collect {
-              case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
+              case peer => peer.address.getAddress
             }
           } to parserController.")
       }
