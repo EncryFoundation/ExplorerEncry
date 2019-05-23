@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 import com.typesafe.scalalogging.StrictLogging
 import encry.settings.DatabaseSettings
 import com.zaxxer.hikari.HikariDataSource
+
 import doobie.hikari.implicits._
 import cats.effect.IO
 import doobie.free.connection.ConnectionIO
