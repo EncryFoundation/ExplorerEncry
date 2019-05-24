@@ -41,7 +41,7 @@ class SimpleNodeParser(node: InetSocketAddress,
       parserRequests.getInfo match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(infoRoute) =>
-          logger.info(s"Get node info on $node during prepare status")
+  //        logger.info(s"Get node info on $node during prepare status")
           currentNodeInfo = infoRoute
           dbActor ! MyCase(node, infoRoute)
       }
@@ -53,11 +53,11 @@ class SimpleNodeParser(node: InetSocketAddress,
              // println(s"${peer.address.getAddress}  111")
               peer.address.getAddress}
           })
-          logger.info(s"Send peer list: ${
-            peersList.collect {
-              case peer => peer.address.getAddress
-            }
-          } to parserController.")
+//          logger.info(s"Send peer list: ${
+//            peersList.collect {
+//              case peer => peer.address.getAddress
+//            }
+//          } to parserController.")
       }
   }
 

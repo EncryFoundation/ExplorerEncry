@@ -75,16 +75,16 @@ class NodeParser(node: InetSocketAddress,
           if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
-            println("else loop")
+            //println("else loop")
             if (lastIds.nonEmpty) {
-              println("if loop")
+//              println("if loop")
               val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
               val toDel: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
               println(s"common point = $commonPoint / toDel = $toDel")
               if (toDel.nonEmpty) self ! ResolveFork(commonPoint, toDel)
             }
             lastIds = newLastHeaders
-            println(s"lastIds = $lastIds")
+//            println(s"lastIds = $lastIds")
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
@@ -161,8 +161,9 @@ class NodeParser(node: InetSocketAddress,
   def awaitDb: Receive = {
     case GetCurrentHeight(height: Int) =>
       if (height == currentBestBlockHeight.get()) {
+        println(s"$height / ${currentBestBlockHeight.get()}")
         context.become(workingCycle)
-        if (height != currentNodeInfo.fullHeight) { self ! Recover }
+        if (height != currentNodeInfo.fullHeight) { self ! Recover } else context.become(workingCycle)
       }
     case _ =>
   }
