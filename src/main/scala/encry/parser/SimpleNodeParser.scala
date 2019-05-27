@@ -27,7 +27,7 @@ class SimpleNodeParser(node: InetSocketAddress,
   var currentBestBlockHeight: AtomicInteger = new AtomicInteger(-1)
 
   override def preStart(): Unit = {
-    logger.info(s"Start monitoring: ${node.getAddress}  444")
+//    logger.info(s"Start monitoring: ${node.getAddress}  444")
     context.system.scheduler.schedule(
       10 seconds,
       10 seconds

@@ -77,7 +77,6 @@ class NodeParser(node: InetSocketAddress,
           else {
             //println("else loop")
             if (lastIds.nonEmpty) {
-//              println("if loop")
               val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
               val toDel: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
               println(s"common point = $commonPoint / toDel = $toDel")
@@ -95,11 +94,11 @@ class NodeParser(node: InetSocketAddress,
             case peer  => {
               peer.address.getAddress}
           })
-          logger.info(s"Send peer list: ${
-            peersList.collect {
-              case peer => peer.address.getAddress
-            }
-          } to parserController.")
+//          logger.info(s"Send peer list: ${
+//            peersList.collect {
+//              case peer => peer.address.getAddress
+//            }
+//          } to parserController.")
       }
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
@@ -149,7 +148,10 @@ class NodeParser(node: InetSocketAddress,
                   currentNodeBestBlockId = block.header.id
                   currentBestBlockHeight.set(block.header.height)
                   dbActor ! BlockFromNode(block, node, currentNodeInfo)
-                  context.become(awaitDb)
+
+                  if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
+                  if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
+
                 }
             }
           )
@@ -163,7 +165,7 @@ class NodeParser(node: InetSocketAddress,
       if (height == currentBestBlockHeight.get()) {
         println(s"$height / ${currentBestBlockHeight.get()}")
         context.become(workingCycle)
-        if (height != currentNodeInfo.fullHeight) { self ! Recover } else context.become(workingCycle)
+        if (height != currentNodeInfo.fullHeight) { self ! Recover }
       }
     case _ =>
   }
