@@ -75,15 +75,14 @@ class NodeParser(node: InetSocketAddress,
           if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
-            //println("else loop")
+            logger.info(s"ELSE LOOP")
             if (lastIds.nonEmpty) {
               val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
               val toDel: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
-              println(s"common point = $commonPoint / toDel = $toDel")
+              logger.info(s"common point = $commonPoint / toDel = $toDel")
               if (toDel.nonEmpty) self ! ResolveFork(commonPoint, toDel)
             }
             lastIds = newLastHeaders
-//            println(s"lastIds = $lastIds")
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
@@ -91,8 +90,7 @@ class NodeParser(node: InetSocketAddress,
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(peersList) =>
           parserContoller ! PeersList(peersList.collect {
-            case peer  => {
-              peer.address.getAddress}
+            case peer  => peer.address.getAddress
           })
 //          logger.info(s"Send peer list: ${
 //            peersList.collect {
@@ -105,6 +103,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getBlock(fromBlock) match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(block) =>
+          logger.info(s"RIGHT LOOP")
           currentNodeBestBlockId = block.header.id
           currentBestBlockHeight.set(block.header.height)
           dbActor ! DropBlocksFromNode(node, toDel)
@@ -150,13 +149,13 @@ class NodeParser(node: InetSocketAddress,
                   dbActor ! BlockFromNode(block, node, currentNodeInfo)
 
                   if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
-                  if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
-
+//                  if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
                 }
             }
           )
       }
       isRecovering.set(false)
+      context.become(awaitDb)
     }
   }
 

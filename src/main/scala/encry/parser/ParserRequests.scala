@@ -1,5 +1,6 @@
 package encry.parser
 
+import java.io.InputStream
 import java.net.InetSocketAddress
 import encry.blockchain.nodeRoutes.InfoRoute
 import io.circe.{Decoder, Error}
