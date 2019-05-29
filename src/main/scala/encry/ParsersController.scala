@@ -4,46 +4,50 @@ import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import encry.parser.{NodeParser, SimpleNodeParser}
 import encry.settings.ParseSettings
-import ExplorerApp._
 import akka.actor.SupervisorStrategy.Resume
 import com.typesafe.scalalogging.StrictLogging
-import encry.parser.NodeParser.PeersList
-
+import encry.parser.NodeParser.PeersFromApi
+import encry.parser.SimpleNodeParser.PeerForRemove
 import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Actor with StrictLogging {
 
-  override def supervisorStrategy: SupervisorStrategy = {
-    OneForOneStrategy(maxNrOfRetries = 5, withinTimeRange = 10 seconds) {
-      case _ => Resume
-    }
+  override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
+    //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)
+    case _ => Resume
   }
-
-  var currentListeningPeers: List[InetAddress] = List.empty[InetAddress]
 
   override def preStart(): Unit = {
-    settings.nodes.foreach { node =>
-//      println(s"$node / node")
-//      self ! PeersList(List(node.getAddress.getHostName))
-      currentListeningPeers == currentListeningPeers ++: List(node.getAddress)
-      context.system.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"),
-        s"ParserFor${node.getHostName}")
-    }
+    logger.info(s"Starting Parsing controller. Try to create listeners for: ${settings.nodes.mkString(",")}")
+    settings.nodes.foreach(node =>
+      context.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"))
+    )
+    val initialPeers: Set[InetAddress] = settings.nodes.map(_.getAddress).toSet
+    logger.info(s"Initial peers are: ${initialPeers.mkString(",")}. Starting main behaviour...")
+    context.become(mainBehaviour(initialPeers))
   }
 
-  override def receive: Receive = {
-    case PeersList(peers) =>
-//      println(s"$currentListeningPeers / currentlisteningPeer")
-//      println(s"$peers / peers")
-      val fp: List[InetAddress] = peers.distinct.diff(currentListeningPeers)
-//      println(s"$fp / fp")
-//      logger.info(s"ParserContreoller got peers list. Peers before diff ${peers.mkString(",")}, resulted collection is: " +
-//        s"${fp.mkString(",")}")
-      fp.foreach { peer =>
-        context.system.actorOf(Props(new SimpleNodeParser(new InetSocketAddress(peer, 9051), self, dbActor, settings)),
-          s"SimpleParserFor${peer.getHostName}")
-              }
-        currentListeningPeers = currentListeningPeers ++: fp
-    case _ =>
+  override def receive: Receive = mainBehaviour(Set.empty[InetAddress])
+
+  def mainBehaviour(knownPeers: Set[InetAddress]): Receive = {
+    case PeersFromApi(peers) =>
+      val newPeers: Set[InetAddress] = peers.diff(knownPeers)
+      logger.info(s"Got new peers on ParserController. Current knownPeers are: ${knownPeers.mkString(",")}, " +
+        s"received peers are: ${peers.mkString(",")}, new unique peers are: ${newPeers.mkString(",")}")
+      newPeers.foreach { peer =>
+        val newAddress: InetSocketAddress = new InetSocketAddress(peer, 9051)
+        logger.info(s"Creating SimpleNode parser for: $newAddress...")
+        context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings), name = s"SNP${peer.getHostName}")
+      }
+      val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
+      logger.info(s"Resulted peers collection is: ${resultedPeers.mkString(",")}.")
+      context.become(mainBehaviour(resultedPeers))
+
+    case PeerForRemove(peer) =>
+      val updatedPeers: Set[InetAddress] = knownPeers - peer
+      logger.info(s"Got peer for removing: $peer. Updated collection is: ${updatedPeers.mkString(",")}.")
+      context.become(mainBehaviour(updatedPeers))
+
+    case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }
 }

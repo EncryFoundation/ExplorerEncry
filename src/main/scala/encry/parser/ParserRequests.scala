@@ -1,6 +1,5 @@
 package encry.parser
 
-import java.io.InputStream
 import java.net.InetSocketAddress
 import encry.blockchain.nodeRoutes.InfoRoute
 import io.circe.{Decoder, Error}
@@ -15,7 +14,10 @@ import scala.io.Source
 case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
 
   private def makeGetRequest[T](uri: String)(implicit decoder: Decoder[T]): Either[Error, T] = for {
-    json <- Http(uri).execute(parser = { inputStream =>
+    json <- Http(uri)
+      .option(HttpOptions.connTimeout(10000))
+      .option(HttpOptions.readTimeout(50000))
+        .execute(parser = { inputStream =>
       val str: String = Source.fromInputStream(inputStream, "UTF8").mkString
       io.circe.parser.parse(str)
     }).body

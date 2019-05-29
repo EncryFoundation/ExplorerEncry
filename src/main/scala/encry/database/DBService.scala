@@ -59,9 +59,7 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     runAsync(processBlock(block, nodeAddr, nodeInfo), "blockInsert")
 
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
-    (for {
-      res <- io.transact(pgTransactor)
-    } yield res)
+    (for { res <- io.transact(pgTransactor) } yield res)
       .unsafeToFuture()
       .recoverWith {
         case NonFatal(th) =>
