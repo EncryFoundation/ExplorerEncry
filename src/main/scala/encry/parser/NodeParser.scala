@@ -41,6 +41,7 @@ class NodeParser(node: InetSocketAddress,
     case PingNode if numberOfRejectedRequests < 3 =>
       parserRequests.getInfo match {
         case Left(err) =>
+          println(s"$err with $sender")
           numberOfRejectedRequests += 1
           logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(infoRoute) =>
@@ -78,7 +79,9 @@ class NodeParser(node: InetSocketAddress,
           logger.info(s"Error during getting Peers request to $node: ${err.getMessage} from SimpleParserController.")
         case Right(peersList) =>
           val peersCollection: Set[InetAddress] = peersList.collect {
-            case peer if peer.address.getAddress != null => peer.address.getAddress
+            case peer =>
+              println(peer)
+              peer.address.getAddress
           }.toSet
           logger.info(s"Got new peers: ${peersCollection.mkString(",")} from Api on NP for: $node. " +
             s"Sending new peers to parser controller.")

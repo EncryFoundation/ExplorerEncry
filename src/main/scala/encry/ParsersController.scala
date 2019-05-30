@@ -1,20 +1,24 @@
 package encry
 
 import java.net.{InetAddress, InetSocketAddress}
+
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import encry.parser.{NodeParser, SimpleNodeParser}
 import encry.settings.ParseSettings
-import akka.actor.SupervisorStrategy.Resume
+import akka.actor.SupervisorStrategy.{Resume, Stop}
 import com.typesafe.scalalogging.StrictLogging
 import encry.parser.NodeParser.PeersFromApi
 import encry.parser.SimpleNodeParser.PeerForRemove
+
 import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Actor with StrictLogging {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
     //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)
-    case _ => Resume
+    case msg =>
+      println(s"Stopping child actor $sender cause of: ${msg.getMessage}.")
+      Stop
   }
 
   override def preStart(): Unit = {
@@ -24,6 +28,11 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
     )
     val initialPeers: Set[InetAddress] = settings.nodes.map(_.getAddress).toSet
     logger.info(s"Initial peers are: ${initialPeers.mkString(",")}. Starting main behaviour...")
+    initialPeers.foreach { peer =>
+      val newAddress: InetSocketAddress = new InetSocketAddress(peer, 9051)
+      logger.info(s"Creating SimpleNode parser for: $newAddress...")
+      context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings), name = s"SNP${peer.getHostName}")
+    }
     context.become(mainBehaviour(initialPeers))
   }
 

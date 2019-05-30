@@ -63,8 +63,9 @@ class SimpleNodeParser(node: InetSocketAddress,
           logger.info(s"Error during getting Peers request to $node: ${err.getMessage} from SimpleParserController." +
             s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
         case Right(peersList) =>
+          //todo: add correct filter
           val peersCollection: Set[InetAddress] = peersList.collect {
-            case peer if peer.address.getAddress != null => peer.address.getAddress
+            case peer => peer.address.getAddress
           }.toSet
           logger.info(s"Got new peers: ${peersCollection.mkString(",")} from Api on SNP for: $node. " +
             s"Sending new peers to parser controller.")

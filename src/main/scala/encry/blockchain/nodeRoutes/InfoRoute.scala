@@ -38,8 +38,8 @@ object InfoRoute {
     headersHeight             <- c.downField("headersHeight").as[Int]
     fullHeight                <- c.downField("fullHeight").as[Int]
     bestHeaderId              <- c.downField("bestHeaderId").as[String]
-    bestFullHeaderId          <- c.downField("bestFullHeaderId").as[String]
-    previousFullHeaderId      <- c.downField("previousFullHeaderId").as[String]
+    bestFullHeaderId          <- c.downField("bestFullHeaderId").as[Option[String]]
+    previousFullHeaderId      <- c.downField("previousFullHeaderId").as[Option[String]]
     difficulty                <- c.downField("difficulty").as[Long]
     unconfirmedCount          <- c.downField("unconfirmedCount").as[Long]
     stateVersion              <- c.downField("stateVersion").as[String]
@@ -54,8 +54,8 @@ object InfoRoute {
     headersHeight,
     fullHeight,
     bestHeaderId,
-    bestFullHeaderId,
-    previousFullHeaderId,
+    bestFullHeaderId.getOrElse(""),
+    previousFullHeaderId.getOrElse(""),
     difficulty,
     unconfirmedCount,
     stateVersion,

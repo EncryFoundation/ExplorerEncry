@@ -15,8 +15,8 @@ object Peer {
     name            <- c.downField("name").as[String]
     connectionType  <- c.downField("connectionType").as[String]
   } yield {
-    val address: Array[String] = addressStr.split("/")
-    val ip: String = if (address.head.isEmpty) address.last.split(":").head else address.head
+    val ip: String = addressStr.split("/").last.split(":").head
+//    val ip: String = if (address.head.isEmpty) address.last.split(":").head else address.head
     Peer(
       new InetSocketAddress (ip, 9051),
       name,

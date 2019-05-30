@@ -15,8 +15,9 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
 
   private def makeGetRequest[T](uri: String)(implicit decoder: Decoder[T]): Either[Error, T] = for {
     json <- Http(uri)
-      .option(HttpOptions.connTimeout(10000))
-      .option(HttpOptions.readTimeout(50000))
+//      .timeout(10000,10000)
+      .option(HttpOptions.readTimeout(60000))
+      .option(HttpOptions.connTimeout(60000))
         .execute(parser = { inputStream =>
       val str: String = Source.fromInputStream(inputStream, "UTF8").mkString
       io.circe.parser.parse(str)
