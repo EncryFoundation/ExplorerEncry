@@ -1,13 +1,16 @@
 package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
-import akka.actor.{Actor, ActorRef, Props}
+
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.UpdatedInfoAboutNode
 import encry.parser.NodeParser.{PeersFromApi, PingNode}
 import encry.parser.SimpleNodeParser.PeerForRemove
 import encry.settings.ParseSettings
+
 import scala.concurrent.duration._
 
 class SimpleNodeParser(node: InetSocketAddress,
@@ -23,7 +26,7 @@ class SimpleNodeParser(node: InetSocketAddress,
 
   override def preStart(): Unit = {
     println(s"Starting SNP for $node")
-    context.system.scheduler.schedule(10.seconds, 10.seconds, self, PingNode)
+    context.system.scheduler.schedule(10.seconds, 10.seconds) (self ! PingNode)
   }
 
   override def receive: Receive = initialPingBehaviour
@@ -39,7 +42,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         println(s"Got response from $node. Starting working cycle")
         context.become(workingCycle)
       } else {
-        println(s"No response from: $node. Stop self")
+        println(s"No response from: $node. Stop self ")
         context.stop(self)
       }
   }
@@ -51,11 +54,13 @@ class SimpleNodeParser(node: InetSocketAddress,
           numberOfRejectedRequests += 1
           logger.info(s"Error during getting Info request to $node: ${err.getMessage} from SimpleParserController." +
             s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
-        case Right(infoRoute) if infoRoute != currentNodeInfo =>
-          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
+        case Right(infoRoute)  =>
+          if (infoRoute != currentNodeInfo){
+//          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
           dbActor ! UpdatedInfoAboutNode(node, infoRoute)
           currentNodeInfo = infoRoute
-        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")
+          }
+//        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")
       }
       parserRequests.getPeers match {
         case Left(err) =>
@@ -67,13 +72,13 @@ class SimpleNodeParser(node: InetSocketAddress,
           val peersCollection: Set[InetAddress] = peersList.collect {
             case peer => peer.address.getAddress
           }.toSet
-          logger.info(s"Got new peers: ${peersCollection.mkString(",")} from Api on SNP for: $node. " +
-            s"Sending new peers to parser controller.")
+//          logger.info(s"Got new peers: ${peersCollection.mkString(",")} from Api on SNP for: $node. " +
+//            s"Sending new peers to parser controller.")
           parserController ! PeersFromApi(peersCollection)
       }
     case PingNode =>
       logger.info(s"Number of attempts has expired! Stop self actor for: $node and remove this node from listening peers!")
-      //parserController ! PeerForRemove(node.getAddress)
+//      parserController ! PeerForRemove(node.getAddress)
       context.stop(self)
 
     case msg => logger.info(s"Got strange message on SimpleNodeParser connected to $node: $msg.")
