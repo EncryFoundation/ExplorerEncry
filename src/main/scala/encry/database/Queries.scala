@@ -35,12 +35,12 @@ object Queries extends StrictLogging {
     sql"""SELECT * FROM public.headers ORDER BY height DESC LIMIT 1;""".query[Header].option
   }
 
-  def insertNode(addr: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = {
+  def insertNode(addr: InetSocketAddress, nodeInfo: InfoRoute, status: Boolean): ConnectionIO[Int] = {
     val nodeIns = Node(addr, nodeInfo)
     val query =
       s"""
          |INSERT INTO public.nodes (ip, status, lastFullBlock, lastFullHeight)
-         |VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO UPDATE SET status = true,
+         |VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO UPDATE SET status = $status,
          |lastFullBlock = '${nodeIns.lastFullBlock}', lastFullHeight = ${nodeIns.lastFullHeight};
          """.stripMargin
     Update[Node](query).run(nodeIns)

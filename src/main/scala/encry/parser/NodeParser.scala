@@ -37,6 +37,11 @@ class NodeParser(node: InetSocketAddress,
     context.system.scheduler.schedule(10.seconds, 10.seconds)(self ! PingNode)
   }
 
+  override def postStop(): Unit = {
+    logger.info(s"Actor ${node} stopped")
+      dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
+  }
+
   override def receive: Receive = prepareCycle
 
   def prepareCycle: Receive = {
@@ -70,10 +75,11 @@ class NodeParser(node: InetSocketAddress,
           logger.info(s"workingCycle Error during request to $node: ${err.getMessage}")
         case Right(newInfoRoute) if newInfoRoute != currentNodeInfo =>
           logger.info(s"workingCycle Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
-            dbActor ! UpdatedInfoAboutNode(node, newInfoRoute)
+            dbActor ! UpdatedInfoAboutNode(node, newInfoRoute, status = true)
             currentNodeInfo = newInfoRoute
           if (currentNodeInfo.fullHeight > currentBestBlockHeight.get()) self ! Recover
-        case Right(_) => logger.info(s"info route on node $node don't change")
+
+        case Right(_) => logger.info(s"Info route on node $node don't change")
       }
 
       parserRequests.getPeers match {
