@@ -166,8 +166,6 @@ class NodeParser(node: InetSocketAddress,
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
               dbActor ! BlockFromNode(block, node, currentNodeInfo)
-              if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
-              //if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
             }
         })
     }
