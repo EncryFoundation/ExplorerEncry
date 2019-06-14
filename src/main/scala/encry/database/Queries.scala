@@ -15,7 +15,7 @@ import org.encryfoundation.common.Algos
 
 object Queries extends StrictLogging {
 
-  def proccessBlock(block: Block, node: InetSocketAddress): ConnectionIO[Int] = for {
+  def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
     header            <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader      <- insertNodeToHeader(block.header, node)
     txs               <- insertTransactionsQuery(block)
@@ -27,25 +27,29 @@ object Queries extends StrictLogging {
     outputs           <- insertOutputsQuery(block.getDbOutputs)
     outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
     dir               <- insertDirectivesQuery(block.payload.txs)
-    _                 <- updateNode(block, node)
+   // _                 <- updateNode(nodeInfo, node)
   } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
-  def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Node]] = {
+  def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
     val test = addr.getAddress.getHostName
-    sql"""SELECT * FROM public.nodes WHERE ip = $test;""".query[Node].option
+    sql"""SELECT * FROM public.headers ORDER BY height DESC LIMIT 1;""".query[Header].option
   }
 
-  def insertNode(addr: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = {
+  def insertNode(addr: InetSocketAddress, nodeInfo: InfoRoute, status: Boolean): ConnectionIO[Int] = {
     val nodeIns = Node(addr, nodeInfo)
-    val query = "INSERT INTO public.nodes (ip, status, lastFullBlock, lastFullHeight) VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO " +
-      "UPDATE SET status = true"
+    val query =
+      s"""
+         |INSERT INTO public.nodes (ip, status, lastFullBlock, lastFullHeight)
+         |VALUES(?, ?, ?, ?) ON CONFLICT (ip) DO UPDATE SET status = $status,
+         |lastFullBlock = '${nodeIns.lastFullBlock}', lastFullHeight = ${nodeIns.lastFullHeight};
+         """.stripMargin
     Update[Node](query).run(nodeIns)
   }
 
-  def updateNode(block: Block, address: InetSocketAddress): ConnectionIO[Int] = {
-    val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
-    Update[(String, Int, String)](query).run(block.header.id, block.header.height, address.getAddress.getHostName)
-  }
+//  def updateNode(nodeInfo: InfoRoute, address: InetSocketAddress): ConnectionIO[Int] = {
+//    val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
+//    Update[(String, Int, String)](query).run(nodeInfo.bestFullHeaderId, nodeInfo.fullHeight, address.getAddress.getHostName)
+//  }
 
   def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
     val query: String =
@@ -144,7 +148,7 @@ object Queries extends StrictLogging {
   }
 
   def dropHeaderFromNode(headerId: String, addr: InetSocketAddress): ConnectionIO[Int] = {
-    sql"""DELETE FROM public.headerToNode WHERE id = $headerId, nodeIp = ${addr.getAddress.getHostAddress};""".query[Int].unique
+    sql"""DELETE FROM public.headers WHERE id = $headerId;""".query[Int].unique
   }
 
   private def insertDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {

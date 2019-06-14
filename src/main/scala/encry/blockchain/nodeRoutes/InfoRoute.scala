@@ -16,7 +16,7 @@ case class InfoRoute(nodeName: String,
                      peersCount: Int,
                      knownPeers: List[String],
                      storage: String,
-                     isConnectedWithKnownPeers: Boolean){
+                     isConnectedWithKnownPeers: Boolean) {
 
   override def toString: String =
     s"Node: $nodeName\n " +
@@ -28,8 +28,9 @@ case class InfoRoute(nodeName: String,
 
 object InfoRoute {
 
-  val empty =
-    InfoRoute("", "", 0, 0, "", "", "", 0L, 0L, "", isMining = false, 0, List.empty, "", isConnectedWithKnownPeers = false)
+  val empty = InfoRoute(
+    "", "", 0, 0, "", "", "", 0L, 0L, "", isMining = false, 0, List.empty, "", isConnectedWithKnownPeers = false
+  )
 
   implicit val decoder: Decoder[InfoRoute] = (c: HCursor) => for {
     nodeName                  <- c.downField("name").as[String]
@@ -37,8 +38,8 @@ object InfoRoute {
     headersHeight             <- c.downField("headersHeight").as[Int]
     fullHeight                <- c.downField("fullHeight").as[Int]
     bestHeaderId              <- c.downField("bestHeaderId").as[String]
-    bestFullHeaderId          <- c.downField("bestFullHeaderId").as[String]
-    previousFullHeaderId      <- c.downField("previousFullHeaderId").as[String]
+    bestFullHeaderId          <- c.downField("bestFullHeaderId").as[Option[String]]
+    previousFullHeaderId      <- c.downField("previousFullHeaderId").as[Option[String]]
     difficulty                <- c.downField("difficulty").as[Long]
     unconfirmedCount          <- c.downField("unconfirmedCount").as[Long]
     stateVersion              <- c.downField("stateVersion").as[String]
@@ -53,8 +54,8 @@ object InfoRoute {
     headersHeight,
     fullHeight,
     bestHeaderId,
-    bestFullHeaderId,
-    previousFullHeaderId,
+    bestFullHeaderId.getOrElse(""),
+    previousFullHeaderId.getOrElse(""),
     difficulty,
     unconfirmedCount,
     stateVersion,

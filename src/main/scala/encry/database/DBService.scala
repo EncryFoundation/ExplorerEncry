@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 import com.typesafe.scalalogging.StrictLogging
 import encry.settings.DatabaseSettings
 import com.zaxxer.hikari.HikariDataSource
+
 import doobie.hikari.implicits._
 import cats.effect.IO
 import doobie.free.connection.ConnectionIO
@@ -15,7 +16,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext.Implicits.global
 import Queries._
-import encry.blockchain.modifiers.Block
+import encry.blockchain.modifiers.{Block, Header}
 import encry.database.data.Node
 
 case class DBService(settings: DatabaseSettings) extends StrictLogging {
@@ -34,7 +35,7 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     pgTransactor.shutdown.unsafeToFuture
   }
 
-  def getNodeInfo(addr: InetSocketAddress): Future[Option[Node]] = {
+  def getNodeInfo(addr: InetSocketAddress): Future[Option[Header]] = {
     runAsync(nodeInfoQuery(addr), "nodeInfo")
   }
 
@@ -42,25 +43,23 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     runAsync(dropHeaderFromNode(headerId, addr), "deleteBlocks")
   }
 
-  def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Int] =
-    runAsync(insertNode(addr, infoRoute), "activateNode")
+  def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean): Future[Int] =
+    runAsync(insertNode(addr, infoRoute, status), "activateNode")
 
-  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Node]] = {
+  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Header]] = {
     val res = Await.result(getNodeInfo(addr), 3.minutes)
     res match {
       case Some(info) => Future.successful(Some(info))
-      case None => activateNode(addr, InfoRoute.empty)
-        Future.successful(Some(Node.empty(addr)))
+      case None => activateNode(addr, InfoRoute.empty, status = false)
+        Future.successful(Some(Header.empty))
     }
   }
 
-  def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress): Future[Int] =
-    runAsync(proccessBlock(block, nodeAddr), "blockInsert")
+  def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute): Future[Int] =
+    runAsync(processBlock(block, nodeAddr, nodeInfo), "blockInsert")
 
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
-    (for {
-      res <- io.transact(pgTransactor)
-    } yield res)
+    (for { res <- io.transact(pgTransactor) } yield res)
       .unsafeToFuture()
       .recoverWith {
         case NonFatal(th) =>

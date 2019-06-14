@@ -14,8 +14,11 @@ import scala.io.Source
 case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
 
   private def makeGetRequest[T](uri: String)(implicit decoder: Decoder[T]): Either[Error, T] = for {
-    json <- Http(uri).execute(parser = { inputStream =>
-      val str = Source.fromInputStream(inputStream, "UTF8").mkString
+    json <- Http(uri)
+      .option(HttpOptions.readTimeout(60000))
+      .option(HttpOptions.connTimeout(60000))
+        .execute(parser = { inputStream =>
+      val str: String = Source.fromInputStream(inputStream, "UTF8").mkString
       io.circe.parser.parse(str)
     }).body
     elem <- decoder.decodeJson(json)

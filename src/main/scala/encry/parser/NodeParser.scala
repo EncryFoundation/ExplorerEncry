@@ -3,22 +3,22 @@ package encry.parser
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import akka.actor.SupervisorStrategy.Resume
 import scala.concurrent.duration._
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, SupervisorStrategy}
+import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.blockchain.nodeRoutes.apiEntities.Peer
-import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, UpdatedInfoAboutNode}
 import encry.parser.NodeParser._
+import encry.parser.SimpleNodeParser.PeerForRemove
 import encry.settings.ParseSettings
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.language.postfixOps
 
 class NodeParser(node: InetSocketAddress,
-                 parserContoller: ActorRef,
+                 parserController: ActorRef,
                  dbActor: ActorRef,
                  settings: ParseSettings) extends Actor with StrictLogging {
 
@@ -30,25 +30,36 @@ class NodeParser(node: InetSocketAddress,
   val isRecovering: AtomicBoolean = new AtomicBoolean(false)
   var lastIds: List[String] = List.empty[String]
   var lastHeaders: List[Header] = List.empty[Header]
+  var numberOfRejectedRequests: Int = 0
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
-    context.system.scheduler.schedule(
-      10 seconds,
-      10 seconds
-    )(self ! PingNode)
+    context.system.scheduler.schedule(10.seconds, 10.seconds)(self ! PingNode)
+  }
+
+  override def postStop(): Unit = {
+    logger.info(s"Actor ${node} stopped")
+      dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
   }
 
   override def receive: Receive = prepareCycle
 
   def prepareCycle: Receive = {
-    case PingNode =>
+    case PingNode  =>
       parserRequests.getInfo match {
-        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
+        case Left(err) =>
+          println(s"$err with $sender")
+          numberOfRejectedRequests += 1
+          logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(infoRoute) =>
           logger.info(s"Get node info on $node during prepare status")
           dbActor ! ActivateNodeAndGetNodeInfo(node, infoRoute)
       }
+//    case PingNode =>
+//      logger.info(s"Number of attempts has expired! Stop self actor for: $node and remove this node from listening peers!")
+//      parserController ! PeerForRemove(node.getAddress)
+//      context.stop(self)
+
     case SetNodeParams(bestBlock, bestHeight) =>
       currentNodeBestBlockId = bestBlock
       currentBestBlockHeight.set(bestHeight)
@@ -57,50 +68,64 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
-    case PingNode =>
+    case PingNode if numberOfRejectedRequests < 3 =>
       parserRequests.getInfo match {
-        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
-        case Right(newInfoRoute) => if (newInfoRoute == currentNodeInfo)
-          logger.info(s"info route on node $node don't change")
-        else {
-          logger.info(s"Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
-          currentNodeInfo = newInfoRoute
+        case Left(err) =>
+//          numberOfRejectedRequests += 1
+          logger.info(s"workingCycle Error during request to $node: ${err.getMessage}")
+        case Right(newInfoRoute) if newInfoRoute != currentNodeInfo =>
+          logger.info(s"workingCycle Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
+            dbActor ! UpdatedInfoAboutNode(node, newInfoRoute, status = true)
+            currentNodeInfo = newInfoRoute
           if (currentNodeInfo.fullHeight > currentBestBlockHeight.get()) self ! Recover
-        }
+
+        case Right(_) => logger.info(s"Info route on node $node don't change")
       }
+
+      parserRequests.getPeers match {
+        case Left(err) =>
+          numberOfRejectedRequests += 1
+          logger.info(s"Error during getting Peers request to $node: ${err.getMessage} from SimpleParserController.")
+        case Right(peersList) =>
+          val peersCollection: Set[InetAddress] = peersList.collect {
+            case peer =>
+              peer.address.getAddress
+          }.toSet
+          logger.info(s"Got new peers: ${peersCollection.mkString(",")} from Api on NP for: $node. " +
+            s"Sending new peers to parser controller.")
+          parserController ! PeersFromApi(peersCollection)
+      }
+
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
-        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
+        case Left(err) =>
+          numberOfRejectedRequests += 1
+          logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(newLastHeaders) =>
           if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
             if (lastIds.nonEmpty) {
-              val commonPoint = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
-              val toDel = lastIds.reverse.takeWhile(_ != commonPoint)
+              val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
+              val toDel: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
+              logger.info(s"common point = $commonPoint / toDel = $toDel")
               if (toDel.nonEmpty) self ! ResolveFork(commonPoint, toDel)
             }
             lastIds = newLastHeaders
             logger.info(s"Current last id is: ${lastIds.last}")
           }
       }
-      parserRequests.getPeers match {
-        case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
-        case Right(peersList) =>
-          parserContoller ! PeersList(peersList.collect {
-            case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
-          })
-          logger.info(s"Send peer list: ${
-            peersList.collect {
-              case peer if peer.connectionType == "Outgoing" => peer.address.getAddress
-            }
-          } to parserContoller.")
 
-      }
+//    case PingNode =>
+//      logger.info(s"Number of attempts has expired! Stop self actor for: $node and remove this node from listening peers!")
+//      parserController ! PeerForRemove(node.getAddress)
+//      context.stop(self)
+
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
       parserRequests.getBlock(fromBlock) match {
         case Left(err) => logger.info(s"Error during request to $node: ${err.getMessage}")
         case Right(block) =>
+          logger.info(s"RIGHT LOOP")
           currentNodeBestBlockId = block.header.id
           currentBestBlockHeight.set(block.header.height)
           dbActor ! DropBlocksFromNode(node, toDel)
@@ -124,50 +149,47 @@ class NodeParser(node: InetSocketAddress,
     }
   }
 
-  def recoverNodeChain(start: Int, end: Int): Unit = {
-    Future {
-      isRecovering.set(true)
-      (start to (start + settings.recoverBatchSize)).foreach {
-        height =>
-          val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
-            case Left(err) => logger.info(s"Err: $err during get block at height $height")
-              List.empty
-            case Right(blocks) => blocks
-          }
-          blocksAtHeight.headOption.foreach(blockId =>
-            parserRequests.getBlock(blockId) match {
-              case Left(err) => logger.info(s"Error during getting block $blockId: ${
-                err.getMessage
-              }")
-              case Right(block) =>
-                if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
-                  currentNodeBestBlockId = block.header.id
-                  currentBestBlockHeight.set(block.header.height)
-                  dbActor ! BlockFromNode(block, node)
-                  context.become(awaitDb)
-                }
-            }
-          )
+  def recoverNodeChain(start: Int, end: Int): Unit = Future {
+    isRecovering.set(true)
+    (start to (start + settings.recoverBatchSize)).foreach { height =>
+      val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
+        case Left(err) =>
+          logger.info(s"Err: $err during get block at height $height")
+          List.empty
+        case Right(blocks) => blocks
       }
-      isRecovering.set(false)
+      blocksAtHeight.headOption.foreach(blockId =>
+        parserRequests.getBlock(blockId) match {
+          case Left(err) => logger.info(s"Error during getting block $blockId: ${err.getMessage}")
+          case Right(block) =>
+            if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
+              currentNodeBestBlockId = block.header.id
+              currentBestBlockHeight.set(block.header.height)
+              dbActor ! BlockFromNode(block, node, currentNodeInfo)
+            }
+        })
     }
+    isRecovering.set(false)
+    if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
+    if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
   }
 
   def awaitDb: Receive = {
-    case GetCurrentHeight(height: Int) =>
+    case GetCurrentHeight(height) =>
       if (height == currentBestBlockHeight.get()) {
         context.become(workingCycle)
-        if (height != currentNodeInfo.fullHeight) { self ! Recover }
+        if (height != currentNodeInfo.fullHeight) {
+          self ! Recover
+        }
       }
     case _ =>
   }
-
 }
 
 
 object NodeParser {
 
-  case class PeersList(peers: List[InetAddress])
+  case class PeersFromApi(peers: Set[InetAddress])
 
   case object PingNode
 
@@ -177,10 +199,9 @@ object NodeParser {
 
   case class SetNodeParams(bestFullBlock: String, bestHeaderHeight: Int)
 
-  case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress)
+  case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute)
 
   case class ResolveFork(fromBlock: String, toDel: List[String])
 
   case object Recover
-
 }
