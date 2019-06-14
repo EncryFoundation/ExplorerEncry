@@ -1,7 +1,10 @@
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 
+
+
 CREATE TABLE nodes(
+idx SERIAL,
   ip VARCHAR(128) PRIMARY KEY,
   status BOOLEAN NOT NULL,
   lastFullBlock VARCHAR(64) NOT NULL,
@@ -9,6 +12,7 @@ CREATE TABLE nodes(
 );
 
 CREATE TABLE headers(
+idx SERIAL,
   id VARCHAR(64) PRIMARY KEY,
   version INTEGER NOT NULL,
   parent_id VARCHAR(64) NOT NULL,
@@ -26,6 +30,7 @@ CREATE TABLE headers(
 );
 
 CREATE TABLE headerToNode (
+idx SERIAL,
   id VARCHAR(64) REFERENCES headers (id),
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
 );
@@ -35,6 +40,7 @@ CREATE INDEX header_id_to_node_index ON headerToNode (id);
 CREATE INDEX height_index ON headers (height);
 
 CREATE TABLE transactions(
+idx SERIAL,
   id VARCHAR(64) PRIMARY KEY,
   fee BIGINT NOT NULL,
   blockId VARCHAR(64) REFERENCES headers (id),
@@ -46,6 +52,7 @@ CREATE TABLE transactions(
 CREATE INDEX block_id_index ON transactions (blockId);
 
 CREATE TABLE inputs(
+idx SERIAL,
   bxId VARCHAR(64) PRIMARY KEY,
   txId VARCHAR(64) REFERENCES transactions (id),
   contract VARCHAR(1024) NOT NULL,
@@ -55,6 +62,7 @@ CREATE TABLE inputs(
 CREATE INDEX tx_id_inputs_index ON inputs (txId);
 
 CREATE TABLE inputsToNodes(
+idx SERIAL,
   inputId VARCHAR(64) REFERENCES inputs (bxId),
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
 );
@@ -64,14 +72,17 @@ CREATE INDEX inputId_inputsToNodes_index ON inputsToNodes (inputId);
 CREATE INDEX nodeIp_inputsToNodes_index ON inputsToNodes (nodeIp);
 
 CREATE TABLE accounts(
+idx SERIAL,
   contractHash VARCHAR(64) PRIMARY KEY
 );
 
 CREATE TABLE tokens(
+idx SERIAL,
   id VARCHAR(64) PRIMARY KEY
 );
 
 CREATE TABLE outputs(
+idx SERIAL,
   id VARCHAR(64) PRIMARY KEY,
   boxType INT NOT NULL,
   txId VARCHAR(64) REFERENCES transactions (id),
@@ -89,11 +100,13 @@ CREATE INDEX coinId_outputs_index ON outputs (coinId);
 CREATE INDEX contractHash_outputs_index ON outputs (contractHash);
 
 CREATE TABLE outputsToNodes(
+idx SERIAL,
   outputId VARCHAR(64) REFERENCES outputs (id),
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
 );
 
 CREATE TABLE directives(
+idx SERIAL,
   tx_id VARCHAR(64) REFERENCES transactions (id),
   number_in_tx INTEGER NOT NULL,
   type_id SMALLINT NOT NULL,
@@ -105,3 +118,65 @@ CREATE TABLE directives(
   data_field TEXT NOT NULL,
   PRIMARY KEY (tx_id, number_in_tx)
 );
+
+create table wallet(
+idx SERIAL,
+hash varchar(64) NOT NULL ,
+amount bigint NOT NULL,
+tokenId varchar(64) NOT NULL,
+PRIMARY KEY (hash, tokenId));
+
+CREATE INDEX tokenId_wallet_index ON wallet (tokenId);
+CREATE INDEX hash_wallet_index ON wallet (hash);
+
+CREATE FUNCTION emp_stamp() RETURNS trigger AS $emp_stamp$
+
+DECLARE
+oldVal bigint DEFAULT  0;
+newVal bigint DEFAULT  0;
+hashh varchar(64) DEFAULT '';
+tok varchar(64) DEFAULT '';
+rowss int;
+
+BEGIN
+rowss := (select * from tmp11(NEW.contractHash, NEW.coinId));
+ IF     rowss = 0 THEN oldVal := 0;
+ ELSEIF rowss > 0 THEN oldVal := (SELECT amount FROM wallet where hash = NEW.contractHash AND tokenId = NEW.coinId);
+ END IF;
+IF (TG_OP = 'INSERT') THEN
+        newVal := oldVal + NEW.monetaryValue;
+		hashh := NEW.contractHash;
+		tok := NEW.coinId;
+		INSERT INTO wallet(hash, amount, tokenId) values(hashh, newVal, tok)
+		ON CONFLICT (hash, tokenId) DO UPDATE SET amount = newVal;
+		rowss := 0;
+        RETURN NEW;
+
+ELSEIF (TG_OP = 'DELETE') THEN
+		oldVal := (SELECT amount FROM wallet where hash = OLD.contractHash AND tokenId = OLD.coinId);
+        newVal := oldVal - OLD.monetaryValue;
+		hashh := OLD.contractHash;
+		tok := OLD.coinId;
+		INSERT INTO wallet(hash, amount, tokenId) values(hashh, newVal, tok)
+		ON CONFLICT (hash, tokenId) DO UPDATE SET amount = newVal;
+		rowss := 0;
+        RETURN OLD;
+		END IF;
+    END;
+$emp_stamp$ LANGUAGE plpgsql;
+
+CREATE TRIGGER emp_stamp AFTER INSERT OR DELETE ON outputs
+    FOR EACH ROW EXECUTE PROCEDURE emp_stamp();
+
+    CREATE OR REPLACE FUNCTION tmp11(i varchar(64), b varchar(64))
+RETURNS int AS $$
+DECLARE
+numrows int;
+BEGIN
+perform amount from wallet where hash = i AND tokenId = b;
+GET DIAGNOSTICS numrows := ROW_COUNT;
+IF numrows = 0 THEN numrows := 0;
+END IF;
+RETURN numrows;
+END;
+$$ LANGUAGE 'plpgsql';
