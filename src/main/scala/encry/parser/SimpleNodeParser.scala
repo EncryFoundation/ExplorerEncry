@@ -29,6 +29,11 @@ class SimpleNodeParser(node: InetSocketAddress,
     context.system.scheduler.schedule(10.seconds, 10.seconds) (self ! PingNode)
   }
 
+  override def postStop(): Unit = {
+    logger.info(s"Actor $node stopped!!!")
+    dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
+  }
+
   override def receive: Receive = initialPingBehaviour
 
   def initialPingBehaviour: Receive = {
@@ -57,7 +62,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         case Right(infoRoute)  =>
           if (infoRoute != currentNodeInfo){
 //          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
-          dbActor ! UpdatedInfoAboutNode(node, infoRoute)
+          dbActor ! UpdatedInfoAboutNode(node, infoRoute, status = true)
           currentNodeInfo = infoRoute
           }
 //        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")

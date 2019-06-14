@@ -4,7 +4,6 @@ import java.net.InetSocketAddress
 import com.typesafe.scalalogging.StrictLogging
 import encry.settings.DatabaseSettings
 import com.zaxxer.hikari.HikariDataSource
-
 import doobie.hikari.implicits._
 import cats.effect.IO
 import doobie.free.connection.ConnectionIO
@@ -43,14 +42,14 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     runAsync(dropHeaderFromNode(headerId, addr), "deleteBlocks")
   }
 
-  def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Int] =
-    runAsync(insertNode(addr, infoRoute), "activateNode")
+  def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean): Future[Int] =
+    runAsync(insertNode(addr, infoRoute, status), "activateNode")
 
   def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Header]] = {
     val res = Await.result(getNodeInfo(addr), 3.minutes)
     res match {
       case Some(info) => Future.successful(Some(info))
-      case None => activateNode(addr, InfoRoute.empty)
+      case None => activateNode(addr, InfoRoute.empty, status = false)
         Future.successful(Some(Header.empty))
     }
   }
