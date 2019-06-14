@@ -54,6 +54,7 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
       context.become(mainBehaviour(resultedPeers))
 
     case PeerForRemove(peer) =>
+      //todo check logic related to removing peer from known peers collection
       val updatedPeers: Set[InetAddress] = knownPeers - peer
       logger.info(s"Got peer for removing: $peer. Updated collection is: ${updatedPeers.mkString(",")}.")
       context.become(mainBehaviour(updatedPeers))
