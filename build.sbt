@@ -49,4 +49,10 @@ outputStrategy := Some(StdoutOutput)
 
 connectInput in run := true
 
+val opts = Seq(
+  "-Xmx2G",
+)
+
+javaOptions in run ++= opts
+
 val explorer = (project in file(".")).settings(settings: _*)
