@@ -82,7 +82,7 @@ CREATE TABLE tokens(
 );
 
 CREATE TABLE outputs(
-idx SERIAL,
+  idx SERIAL,
   id VARCHAR(64) PRIMARY KEY,
   boxType INT NOT NULL,
   txId VARCHAR(64) REFERENCES transactions (id),
@@ -139,11 +139,11 @@ tok varchar(64) DEFAULT '';
 rowss int;
 
 BEGIN
-rowss := (select * from tmp11(NEW.contractHash, NEW.coinId));
- IF     rowss = 0 THEN oldVal := 0;
- ELSEIF rowss > 0 THEN oldVal := (SELECT amount FROM wallet where hash = NEW.contractHash AND tokenId = NEW.coinId);
- END IF;
 IF (TG_OP = 'INSERT') THEN
+        rowss := (select * from tmp11(NEW.contractHash, NEW.coinId));
+             IF     rowss = 0 THEN oldVal := 0;
+             ELSEIF rowss > 0 THEN oldVal := (SELECT amount FROM wallet where hash = NEW.contractHash AND tokenId = NEW.coinId);
+        END IF;
         newVal := oldVal + NEW.monetaryValue;
 		hashh := NEW.contractHash;
 		tok := NEW.coinId;
@@ -153,6 +153,7 @@ IF (TG_OP = 'INSERT') THEN
         RETURN NEW;
 
 ELSEIF (TG_OP = 'DELETE') THEN
+        rowss := (select * from tmp11(OLD.contractHash, OLD.coinId));
 		oldVal := (SELECT amount FROM wallet where hash = OLD.contractHash AND tokenId = OLD.coinId);
         newVal := oldVal - OLD.monetaryValue;
 		hashh := OLD.contractHash;

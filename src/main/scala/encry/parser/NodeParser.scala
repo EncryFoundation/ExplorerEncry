@@ -128,7 +128,7 @@ class NodeParser(node: InetSocketAddress,
           logger.info(s"RIGHT LOOP")
           currentNodeBestBlockId = block.header.id
           currentBestBlockHeight.set(block.header.height)
-          dbActor ! DropBlocksFromNode(node, toDel)
+          //dbActor ! DropBlocksFromNode(node, toDel)
           self ! Recover
       }
     case Recover if !isRecovering.get() =>
