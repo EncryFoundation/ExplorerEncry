@@ -1,24 +1,24 @@
 package encry.database
 
 import java.net.InetSocketAddress
+
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import doobie.free.connection.ConnectionIO
 import doobie.util.update.Update
-import doobie.postgres.implicits._
 import doobie.implicits._
-import doobie.postgres.free.largeobjectmanager.LargeObjectManagerOp.Delete
 import encry.blockchain.modifiers.{Block, DirectiveDBVersion, Header, HeaderDBVersion, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
 import org.encryfoundation.common.Algos
+
+import scala.collection.immutable
 
 object Queries extends StrictLogging {
 
   def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
     header <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader <- insertNodeToHeader(block.header, node)
-
     txs <- insertTransactionsQuery(block)
     inputs <- insertInputsQuery(block.getDBInputs)
     inputsToNode <- insertInputToNodeQuery(block.getDBInputs, node)
@@ -75,6 +75,7 @@ object Queries extends StrictLogging {
   }
 
   private def deleteHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
+    val query
     sql"""DELETE from headers where id = ${block.id};""".query[Int].unique
   }
 
@@ -89,7 +90,8 @@ object Queries extends StrictLogging {
   }
 
   private def removeTransactionsQuery(block: Block): ConnectionIO[Int] = {
-    block.payload.txs.map(tx => sql"""DELETE FROM transactions WHERE id = ${tx.id};""".query[Int].unique).head
+    val query = """DELETE FROM transactions WHERE id = ?;"""
+    Update[String](query).updateMany(block.payload.txs.map(_.id))
   }
 
   private def insertInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
