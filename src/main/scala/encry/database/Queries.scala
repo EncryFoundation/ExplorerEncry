@@ -25,16 +25,12 @@ object Queries extends StrictLogging {
     tokens            <- insertTokens(block.getDbOutputs)
     accounts          <- insertAccounts(block.getDbOutputs)
     outputs           <- insertOutputsQuery(block.getDbOutputs)
-    outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
     dir               <- insertDirectivesQuery(block.payload.txs)
     // _                 <- updateNode(nodeInfo, node)
-  } yield header + nodeToHeader + txs + inputs + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
+  } yield header + nodeToHeader + txs + inputs + nonActiveOutputs + tokens + accounts + outputs
 
   def removeBlock(addr: InetSocketAddress, block: Block): ConnectionIO[Int] = for {
     directives      <- removeDirectivesQuery(block.payload.txs)
-    outputsToNode   <- {
-      removeOutputsToNodeQuery(block.getDbOutputs, addr)
-    }
     outputs         <- {
       removeOutputsQuery(block.getDbOutputs)
     }
@@ -53,7 +49,7 @@ object Queries extends StrictLogging {
     headers         <- {
       deleteHeaderQuery(HeaderDBVersion(block))
     }
-  } yield directives + outputsToNode + outputs + activeOutputs + inputs + txs + nodesToHeader + headers
+  } yield directives  + outputs + activeOutputs + inputs + txs + nodesToHeader + headers
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
     val test = addr.getAddress.getHostName
@@ -168,21 +164,6 @@ object Queries extends StrictLogging {
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[Account](query).updateMany(accounts)
-  }
-
-  private def insertOutputToNodeQuery(outputs: List[DBOutput], node: InetSocketAddress): ConnectionIO[Int] = {
-    val outputsToNodes = outputs.map(output => data.OutputToNode(output.id, node.getAddress.getHostAddress))
-    val query: String =
-      """
-        |INSERT INTO public.outputsToNodes (outputId, nodeIp)
-        |VALUES (?, ?) ON CONFLICT DO NOTHING;
-        |""".stripMargin
-    Update[OutputToNode](query).updateMany(outputsToNodes)
-  }
-
-  private def removeOutputsToNodeQuery(outputs: List[DBOutput], node: InetSocketAddress): ConnectionIO[Int] = {
-    val query = """DELETE from outputsToNodes where outputId = ?;"""
-    Update[String](query).updateMany(outputs.map(_.id))
   }
 
   def insertNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
