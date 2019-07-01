@@ -21,7 +21,6 @@ object Queries extends StrictLogging {
     nodeToHeader      <- insertNodeToHeader(block.header, node)
     txs               <- insertTransactionsQuery(block)
     inputs            <- insertInputsQuery(block.getDBInputs)
-    inputsToNode      <- insertInputToNodeQuery(block.getDBInputs, node)
     nonActiveOutputs  <- markOutputsAsNonActive(block.getDBInputs)
     tokens            <- insertTokens(block.getDbOutputs)
     accounts          <- insertAccounts(block.getDbOutputs)
@@ -29,19 +28,32 @@ object Queries extends StrictLogging {
     outputsToNode     <- insertOutputToNodeQuery(block.getDbOutputs, node)
     dir               <- insertDirectivesQuery(block.payload.txs)
     // _                 <- updateNode(nodeInfo, node)
-  } yield header + nodeToHeader + txs + inputs + inputsToNode + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
+  } yield header + nodeToHeader + txs + inputs + nonActiveOutputs + tokens + accounts + outputs + outputsToNode
 
   def removeBlock(addr: InetSocketAddress, block: Block): ConnectionIO[Int] = for {
     directives      <- removeDirectivesQuery(block.payload.txs)
-    outputsToNode   <- removeOutputsToNodeQuery(block.getDbOutputs, addr)
-    outputs         <- removeOutputsQuery(block.getDbOutputs)
-    activeOutputs   <- markOutputsAsActive(block.getDBInputs)
-    inputsToNode    <- removeInputsToNodeQuery(block.getDBInputs, addr)
-    inputs          <- removeInputsQuery(block.getDBInputs)
-    txs             <- removeTransactionsQuery(block)
-    nodesToHeader    <- deleteNodeToHeader(block.header, addr)
-    headers         <- deleteHeaderQuery(HeaderDBVersion(block))
-  } yield directives + outputsToNode + outputs + activeOutputs + inputsToNode + inputs + txs + nodesToHeader + headers
+    outputsToNode   <- {
+      removeOutputsToNodeQuery(block.getDbOutputs, addr)
+    }
+    outputs         <- {
+      removeOutputsQuery(block.getDbOutputs)
+    }
+    activeOutputs   <- {
+      markOutputsAsActive(block.getDBInputs)
+    }
+    inputs          <- {
+      removeInputsQuery(block.getDBInputs)
+    }
+    txs             <- {
+      removeTransactionsQuery(block)
+    }
+    nodesToHeader    <- {
+      deleteNodeToHeader(block.header, addr)
+    }
+    headers         <- {
+      deleteHeaderQuery(HeaderDBVersion(block))
+    }
+  } yield directives + outputsToNode + outputs + activeOutputs + inputs + txs + nodesToHeader + headers
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
     val test = addr.getAddress.getHostName
@@ -122,21 +134,6 @@ object Queries extends StrictLogging {
         |UPDATE public.outputs SET isActive = true WHERE id = ?
         |""".stripMargin
     Update[String](query).updateMany(inputs.map(_.bxId))
-  }
-
-  private def insertInputToNodeQuery(inputs: List[DBInput], node: InetSocketAddress): ConnectionIO[Int] = {
-    val inputsToNodes = inputs.map(input => InputToNode(input, node))
-    val query: String =
-      """
-        |INSERT INTO public.inputsToNodes (inputId, nodeIp)
-        |VALUES (?, ?) ON CONFLICT DO NOTHING;
-        |""".stripMargin
-    Update[InputToNode](query).updateMany(inputsToNodes)
-  }
-
-  def removeInputsToNodeQuery(inputs: List[DBInput], node: InetSocketAddress): ConnectionIO[Int] = {
-    val query = "DELETE FROM inputsToNodes WHERE nodeIp = ? AND inputId = ?;"
-    Update[(String, String)](query).updateMany(inputs.map(input => (node.toString, input.bxId)))
   }
 
   private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {

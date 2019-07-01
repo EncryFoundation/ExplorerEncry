@@ -1,8 +1,6 @@
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 
-
-
 CREATE TABLE nodes(
 -- idx SERIAL,
   ip VARCHAR(128) PRIMARY KEY,
@@ -29,7 +27,7 @@ CREATE TABLE headers(
   minerReward BIGINT NOT NULL
 );
 
-CREATE TABLE headerToNode (
+CREATE TABLE headerToNode(
 -- idx SERIAL,
   id VARCHAR(64) REFERENCES headers (id),
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
@@ -61,16 +59,6 @@ CREATE TABLE inputs(
 
 CREATE INDEX tx_id_inputs_index ON inputs (txId);
 
-CREATE TABLE inputsToNodes(
--- idx SERIAL,
-  inputId VARCHAR(64) REFERENCES inputs (bxId),
-  nodeIp VARCHAR(128) REFERENCES nodes (ip)
-);
-
-CREATE INDEX inputId_inputsToNodes_index ON inputsToNodes (inputId);
-
-CREATE INDEX nodeIp_inputsToNodes_index ON inputsToNodes (nodeIp);
-
 CREATE TABLE accounts(
 -- idx SERIAL,
   contractHash VARCHAR(64) PRIMARY KEY
@@ -98,12 +86,6 @@ CREATE TABLE outputs(
 CREATE INDEX txId_outputs_index ON outputs (txId);
 CREATE INDEX coinId_outputs_index ON outputs (coinId);
 CREATE INDEX contractHash_outputs_index ON outputs (contractHash);
-
-CREATE TABLE outputsToNodes(
--- idx SERIAL,
-  outputId VARCHAR(64) REFERENCES outputs (id),
-  nodeIp VARCHAR(128) REFERENCES nodes (ip)
-);
 
 CREATE TABLE directives(
 -- idx SERIAL,
