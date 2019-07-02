@@ -3,6 +3,7 @@ package encry.database
 import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
+import encry.blockchain.modifiers.Block
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, UpdatedInfoAboutNode}
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
@@ -29,8 +30,8 @@ class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
       val height = block.header.height
       sender() ! GetCurrentHeight(height)
 
-    case DropBlocksFromNode(addr: InetSocketAddress, blocks: List[String]) =>
-      blocks.foreach(blockId => dbService.deleteBlocksFromNode(addr, blockId))
+    case DropBlocksFromNode(addr: InetSocketAddress, blocks: List[Block]) =>
+      blocks.foreach(block => dbService.deleteBlock(addr, block))
   }
 }
 
@@ -42,6 +43,6 @@ object DBActor {
 
   case class UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean)
 
-  case class DropBlocksFromNode(addr: InetSocketAddress, blocks: List[String])
+  case class DropBlocksFromNode(addr: InetSocketAddress, blocks: List[Block])
 
 }

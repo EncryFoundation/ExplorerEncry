@@ -106,9 +106,10 @@ class NodeParser(node: InetSocketAddress,
           else {
             if (lastIds.nonEmpty) {
               val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
-              val toDel: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
-              logger.info(s"common point = $commonPoint / toDel = $toDel")
-              if (toDel.nonEmpty) self ! ResolveFork(commonPoint, toDel)
+              val toDelIds: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
+              logger.info(s"common point = $commonPoint / toDel = $toDelIds")
+              val toDel = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
+              if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
             }
             lastIds = newLastHeaders
             logger.info(s"Current last id is: ${lastIds.last}")
@@ -201,7 +202,7 @@ object NodeParser {
 
   case class BlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute)
 
-  case class ResolveFork(fromBlock: String, toDel: List[String])
+  case class ResolveFork(fromBlock: String, toDel: List[Block])
 
   case object Recover
 }
