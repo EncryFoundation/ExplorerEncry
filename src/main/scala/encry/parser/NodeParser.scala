@@ -10,7 +10,6 @@ import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, UpdatedInfoAboutNode}
 import encry.parser.NodeParser._
-import encry.parser.SimpleNodeParser.PeerForRemove
 import encry.settings.ParseSettings
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -38,7 +37,7 @@ class NodeParser(node: InetSocketAddress,
   }
 
   override def postStop(): Unit = {
-    logger.info(s"Actor ${node} stopped")
+    logger.info(s"Actor $node stopped")
       dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
   }
 

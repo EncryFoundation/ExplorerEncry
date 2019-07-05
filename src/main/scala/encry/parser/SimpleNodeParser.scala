@@ -40,14 +40,14 @@ class SimpleNodeParser(node: InetSocketAddress,
     case PingNode =>
       var isConnected: Boolean = false
       parserRequests.getInfo match {
-        case Left(_) =>
+        case Left(_) => numberOfRejectedRequests += 1
         case Right(_) => isConnected = true
       }
       if (isConnected) {
         println(s"Got response from $node. Starting working cycle")
         context.become(workingCycle)
-      } else {
-        println(s"No response from: $node. Stop self ")
+      } else if (numberOfRejectedRequests >= 5) {
+        println(s"No response from: $node. Stop self")
         context.stop(self)
       }
   }
