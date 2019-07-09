@@ -10,8 +10,8 @@ import doobie.implicits._
 import encry.blockchain.modifiers.{Block, DirectiveDBVersion, Header, HeaderDBVersion, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
-import org.encryfoundation.common.Algos
 import doobie.postgres.implicits._
+import org.encryfoundation.common.utils.Algos
 
 object Queries extends StrictLogging {
 

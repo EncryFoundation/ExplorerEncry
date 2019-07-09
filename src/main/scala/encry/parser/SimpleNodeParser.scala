@@ -40,14 +40,16 @@ class SimpleNodeParser(node: InetSocketAddress,
     case PingNode =>
       var isConnected: Boolean = false
       parserRequests.getInfo match {
-        case Left(_) => numberOfRejectedRequests += 1
+        case Left(th) =>
+          logger.warn(s"Can't get node info during initial ping behaviour. Current number of rejected requests if ${numberOfRejectedRequests + 1}", th)
+          numberOfRejectedRequests += 1
         case Right(_) => isConnected = true
       }
       if (isConnected) {
-        println(s"Got response from $node. Starting working cycle")
+        logger.info(s"Got response from $node. Starting working cycle")
         context.become(workingCycle)
       } else if (numberOfRejectedRequests >= 5) {
-        println(s"No response from: $node. Stop self")
+        logger.info(s"No response from: $node. Stop self")
         context.stop(self)
       }
   }
@@ -55,10 +57,10 @@ class SimpleNodeParser(node: InetSocketAddress,
   def workingCycle: Receive = {
     case PingNode if numberOfRejectedRequests < 3 =>
       parserRequests.getInfo match {
-        case Left(err) =>
+        case Left(th) =>
           numberOfRejectedRequests += 1
-          logger.info(s"Error during getting Info request to $node: ${err.getMessage} from SimpleParserController." +
-            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
+          logger.warn(s"Error during getting Info request to $node from SimpleParserController." +
+            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(infoRoute)  =>
           if (infoRoute != currentNodeInfo){
 //          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
@@ -68,10 +70,10 @@ class SimpleNodeParser(node: InetSocketAddress,
 //        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")
       }
       parserRequests.getPeers match {
-        case Left(err) =>
+        case Left(th) =>
           numberOfRejectedRequests += 1
-          logger.info(s"Error during getting Peers request to $node: ${err.getMessage} from SimpleParserController." +
-            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
+          logger.warn(s"Error during getting Peers request to $node from SimpleParserController." +
+            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(peersList) =>
           //todo: add correct filter
           val peersCollection: Set[InetAddress] = peersList.collect {

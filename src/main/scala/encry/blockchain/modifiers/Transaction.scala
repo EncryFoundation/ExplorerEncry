@@ -2,7 +2,7 @@ package encry.blockchain.modifiers
 
 import encry.blockchain.modifiers.boxes.EncryBaseBoxAPI
 import io.circe.{Decoder, HCursor}
-import org.encryfoundation.common.transaction.{Input, Proof}
+import org.encryfoundation.common.modifiers.mempool.transaction.{Input, Proof}
 
 case class Transaction(id: String = "",
                        fee: Long = 0L,

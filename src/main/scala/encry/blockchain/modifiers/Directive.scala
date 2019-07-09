@@ -3,9 +3,8 @@ package encry.blockchain.modifiers
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.EncryBaseBox
 import io.circe.{Decoder, DecodingFailure, Encoder}
-import org.encryfoundation.common.transaction.EncryAddress.Address
 import cats.implicits._
-import encry.utils.CoreTaggedTypes.ModifierId
+import org.encryfoundation.common.modifiers.mempool.transaction.EncryAddress.Address
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
 import scorex.crypto.encode.Base16
 import scorex.crypto.hash.Digest32

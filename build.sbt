@@ -26,7 +26,7 @@ val apiDependencies = Seq(
 
 val loggingDependencies = Seq(
   "com.typesafe.scala-logging" %% "scala-logging" % "3.9.0",
-  "org.encry" %% "encry-common" % "0.8.3",
+  "org.encry" %% "encry-common" % "0.8.9",
   "io.circe" %% "circe-core" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "io.circe" %% "circe-generic" % circeVersion,

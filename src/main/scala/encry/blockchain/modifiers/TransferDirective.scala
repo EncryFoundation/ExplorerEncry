@@ -4,12 +4,11 @@ import com.google.common.primitives.Ints
 import io.circe.syntax._
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.{AssetBox, EncryBaseBox, EncryProposition}
-import encry.utils.CoreTaggedTypes.ModifierId
 import encry.utils.Utils
 import io.circe.{Decoder, Encoder, HCursor}
-import org.encryfoundation.common.Algos
-import org.encryfoundation.common.transaction.EncryAddress
-import org.encryfoundation.common.transaction.EncryAddress.Address
+import org.encryfoundation.common.modifiers.mempool.transaction.EncryAddress
+import org.encryfoundation.common.modifiers.mempool.transaction.EncryAddress.Address
+import org.encryfoundation.common.utils.Algos
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
 import scorex.crypto.encode.Base16
 import scorex.crypto.hash.Digest32

@@ -1,6 +1,7 @@
 package encry.database
 
 import java.net.{InetAddress, InetSocketAddress}
+
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.Block
@@ -8,8 +9,10 @@ import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, UpdatedInfoAboutNode}
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
 import encry.settings.DatabaseSettings
+
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.util.control.NonFatal
 
 class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
 

@@ -4,7 +4,7 @@ import encry.blockchain.modifiers.boxes.Box.Amount
 import encry.settings.Constants
 import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.syntax._
-import org.encryfoundation.common.Algos
+import org.encryfoundation.common.utils.Algos
 import org.encryfoundation.prismlang.core.Types
 import org.encryfoundation.prismlang.core.wrapped.{PObject, PValue}
 
@@ -15,7 +15,6 @@ case class AssetBox(override val proposition: EncryProposition,
   extends EncryBox[EncryProposition] with MonetaryBox {
 
   override val typeId: Byte = AssetBox.TypeId
-
 
   override val tpe: Types.Product = Types.AssetBox
 

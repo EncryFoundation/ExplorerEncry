@@ -3,7 +3,7 @@ package encry.blockchain.modifiers
 import encry.blockchain.modifiers.boxes.EncryBaseBox
 import encry.database.data.{DBInput, DBOutput}
 import io.circe.{Decoder, HCursor}
-import org.encryfoundation.common.Algos
+import org.encryfoundation.common.utils.Algos
 import scorex.crypto.hash.Digest32
 
 case class Block(header: Header, payload: Payload) {
