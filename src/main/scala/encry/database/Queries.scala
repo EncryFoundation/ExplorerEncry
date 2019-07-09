@@ -75,7 +75,7 @@ object Queries extends StrictLogging {
   def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
     val query: String =
       s"""
-         |INSERT INTO public.headers (id, version, parent_id, adProofsRoot, stateRoot, transactionsRoot, timestamp, height, nonce,
+         |INSERT INTO public.headers (id, version, parent_id, transactionsRoot, timestamp, height, nonce,
          |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
          |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
