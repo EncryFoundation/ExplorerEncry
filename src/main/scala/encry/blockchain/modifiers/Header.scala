@@ -14,7 +14,7 @@ case class Header(id: String,
 
 object Header {
 
-  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty)
+  val empty: Header = Header("", -1: Byte, "", "", 0L, 0, 0L, 0L, List.empty)
 
   implicit val jsonDecoder: Decoder[Header] = (c: HCursor) =>
     for {
