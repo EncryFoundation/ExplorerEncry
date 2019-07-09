@@ -14,8 +14,6 @@ CREATE TABLE headers(
   id VARCHAR(64) PRIMARY KEY,
   version INTEGER NOT NULL,
   parent_id VARCHAR(64) NOT NULL,
-  adProofsRoot VARCHAR(64) NOT NULL,
-  stateRoot VARCHAR(66) NOT NULL,
   transactionsRoot VARCHAR(64) NOT NULL,
   timestamp BIGINT NOT NULL,
   height INTEGER NOT NULL,
@@ -62,6 +60,11 @@ CREATE INDEX tx_id_inputs_index ON inputs (txId);
 CREATE TABLE accounts(
 -- idx SERIAL,
   contractHash VARCHAR(64) PRIMARY KEY
+);
+
+CREATE TABLE accBalances(
+  contractHash VARCHAR(64) PRIMARY KEY,
+  balance BIGINT NOT NULL
 );
 
 CREATE TABLE tokens(

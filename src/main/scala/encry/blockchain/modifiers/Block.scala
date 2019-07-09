@@ -6,7 +6,7 @@ import io.circe.{Decoder, HCursor}
 import org.encryfoundation.common.Algos
 import scorex.crypto.hash.Digest32
 
-case class Block(header: Header, payload: Payload, adProofsOpt: Option[ADProofs]) {
+case class Block(header: Header, payload: Payload) {
 
   def getDBInputs: List[DBInput] = payload.txs.flatMap(tx => tx.inputs.map(input => DBInput(input, tx.id)))
 
@@ -22,7 +22,7 @@ case class Block(header: Header, payload: Payload, adProofsOpt: Option[ADProofs]
 
 object Block {
 
-  val empty: Block = Block(Header.empty, Payload.empty, None)
+  val empty: Block = Block(Header.empty, Payload.empty)
 
   implicit val decoder: Decoder[Block] = (c: HCursor) => {
     for {
@@ -31,7 +31,6 @@ object Block {
     } yield Block(
       header,
       payload,
-      None
     )
   }
 }

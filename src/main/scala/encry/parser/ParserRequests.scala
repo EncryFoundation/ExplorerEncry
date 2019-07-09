@@ -21,7 +21,9 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
       val str: String = Source.fromInputStream(inputStream, "UTF8").mkString
       io.circe.parser.parse(str)
     }).body
-    elem <- decoder.decodeJson(json)
+    elem <- {
+      decoder.decodeJson(json)
+    }
   } yield elem
 
   def getInfo: Either[Error, InfoRoute] =

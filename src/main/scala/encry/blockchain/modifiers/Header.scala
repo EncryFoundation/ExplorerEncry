@@ -5,8 +5,6 @@ import io.circe.{Decoder, HCursor}
 case class Header(id: String,
                   version: Byte,
                   parentId: String,
-                  adProofsRoot: String,
-                  stateRoot: String,
                   transactionsRoot: String,
                   timestamp: Long,
                   height: Int,
@@ -16,15 +14,13 @@ case class Header(id: String,
 
 object Header {
 
-  val empty: Header = Header("", -1: Byte, "", "", "", "", 0L, 0, 0L, 0L, List.empty)
+  val empty: Header = Header("", -1: Byte, "", "", 0L, 0, 0L, 0L, List.empty)
 
   implicit val jsonDecoder: Decoder[Header] = (c: HCursor) =>
     for {
       id               <- c.downField("id").as[String]
       version          <- c.downField("version").as[Byte]
       parentId         <- c.downField("parentId").as[String]
-      adProofsRoot     <- c.downField("adProofsRoot").as[String]
-      stateRoot        <- c.downField("stateRoot").as[String]
       txRoot           <- c.downField("txRoot").as[String]
       timestamp        <- c.downField("timestamp").as[Long]
       height           <- c.downField("height").as[Int]
@@ -35,8 +31,6 @@ object Header {
       id,
       version,
       parentId,
-      adProofsRoot,
-      stateRoot,
       txRoot,
       timestamp,
       height,
@@ -49,8 +43,6 @@ object Header {
 case class HeaderDBVersion(id: String,
                            version: Int,
                            parentId: String,
-                           adProofsRoot: String,
-                           stateRoot: String,
                            transactionsRoot: String,
                            timestamp: Long,
                            height: Int,
@@ -69,8 +61,6 @@ object HeaderDBVersion {
       block.header.id,
       block.header.version,
       block.header.parentId,
-      block.header.adProofsRoot,
-      block.header.stateRoot,
       block.header.transactionsRoot,
       block.header.timestamp,
       block.header.height,
