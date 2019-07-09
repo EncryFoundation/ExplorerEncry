@@ -77,7 +77,7 @@ object Queries extends StrictLogging {
       s"""
          |INSERT INTO public.headers (id, version, parent_id, transactionsRoot, timestamp, height, nonce,
          |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
-         |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+         |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderDBVersion](query).run(block)
   }
