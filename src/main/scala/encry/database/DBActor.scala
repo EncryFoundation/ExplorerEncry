@@ -24,7 +24,8 @@ class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
       val res = Await.result(dbService.activateOrGetNodeInfo(addr, infoRoute), 3.minutes)
       res.foreach(nodeInfo => sender() ! SetNodeParams(nodeInfo.id, nodeInfo.height))
 
-    case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) => dbService.activateNode(addr, infoRoute, status)
+    case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) =>
+      dbService.activateNode(addr, infoRoute, status)
 
     case BlockFromNode(block, nodeAddr, nodeInfo) =>
       logger.info(s"Insert block with id: ${block.header.id} on height ${block.header.height} " +

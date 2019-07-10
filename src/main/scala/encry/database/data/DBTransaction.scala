@@ -20,7 +20,7 @@ object DBTransaction {
       tx.id,
       tx.fee,
       tx.timestamp,
-      tx.defaultProofOpt.map{
+      tx.defaultProofOpt.map {
         case Proof(IntValue(value), _) => s"IntValue - ${value.toString}"
         case Proof(ByteValue(value), _) => s"ByteValue - ${value.toString}"
         case Proof(BoolValue(value), _) => s"BoolValue - ${value.toString}"
@@ -32,10 +32,4 @@ object DBTransaction {
       tx.inputs.isEmpty,
       blockId)
 
-  def apply(id: String,
-            fee: Long,
-            timestamp: Long,
-            defaultProofOpt: Option[String],
-            isCoinbase: Boolean,
-            blockId: String): DBTransaction = DBTransaction(id, fee, timestamp, defaultProofOpt, isCoinbase, blockId)
-}
+ }
