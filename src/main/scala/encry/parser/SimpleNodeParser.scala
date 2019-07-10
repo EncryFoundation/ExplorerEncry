@@ -47,6 +47,7 @@ class SimpleNodeParser(node: InetSocketAddress,
       }
       if (isConnected) {
         logger.info(s"Got response from $node. Starting working cycle")
+        numberOfRejectedRequests = 0
         context.become(workingCycle)
       } else if (numberOfRejectedRequests >= 5) {
         logger.info(s"No response from: $node. Stop self")

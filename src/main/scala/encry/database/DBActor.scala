@@ -11,7 +11,7 @@ import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, U
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
 import encry.settings.DatabaseSettings
 
-import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.ExecutionContextExecutor
 
 class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
 
@@ -24,7 +24,6 @@ class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
         .activateOrGetNodeInfo(addr, infoRoute)
         .map(nodeInfo => SetNodeParams(nodeInfo.id, nodeInfo.height))
         .pipeTo(sender())
-      //res.foreach(nodeInfo => sender() ! SetNodeParams(nodeInfo.id, nodeInfo.height))
 
     case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) =>
       dbService.activateNode(addr, infoRoute, status)
