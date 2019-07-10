@@ -2,6 +2,7 @@ package encry.database
 
 import java.net.{InetAddress, InetSocketAddress}
 
+import akka.pattern._
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.Block
@@ -10,9 +11,7 @@ import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, U
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
 import encry.settings.DatabaseSettings
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
-import scala.util.control.NonFatal
+import scala.concurrent.{Await, ExecutionContextExecutor}
 
 class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
 
@@ -21,8 +20,11 @@ class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
 
   override def receive: Receive = {
     case ActivateNodeAndGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute) =>
-      val res = Await.result(dbService.activateOrGetNodeInfo(addr, infoRoute), 3.minutes)
-      res.foreach(nodeInfo => sender() ! SetNodeParams(nodeInfo.id, nodeInfo.height))
+      dbService
+        .activateOrGetNodeInfo(addr, infoRoute)
+        .map(nodeInfo => SetNodeParams(nodeInfo.id, nodeInfo.height))
+        .pipeTo(sender())
+      //res.foreach(nodeInfo => sender() ! SetNodeParams(nodeInfo.id, nodeInfo.height))
 
     case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) =>
       dbService.activateNode(addr, infoRoute, status)

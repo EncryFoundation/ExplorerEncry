@@ -41,14 +41,12 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
   def activateNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean): Future[Int] =
     runAsync(insertNode(addr, infoRoute, status), "activateNode")
 
-  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Option[Header]] = {
-    val res = Await.result(getNodeInfo(addr), 3.minutes)
-    res match {
-      case Some(info) => Future.successful(Some(info))
-      case None => activateNode(addr, InfoRoute.empty, status = false)
-        Future.successful(Some(Header.empty))
+  def activateOrGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute): Future[Header] =
+    getNodeInfo(addr).flatMap {
+      case Some(info) => Future.successful(info)
+      case None => activateNode(addr, InfoRoute.empty, status = false).map(_ => Header.empty)
     }
-  }
+
 
   def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute): Future[Int] =
     runAsync(processBlock(block, nodeAddr, nodeInfo), "blockInsert")
