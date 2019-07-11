@@ -23,6 +23,7 @@ class SimpleNodeParser(node: InetSocketAddress,
   val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
   var numberOfRejectedRequests: Int = 0
+  val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
 
   override def preStart(): Unit = {
     println(s"Starting SNP for $node")
@@ -37,29 +38,32 @@ class SimpleNodeParser(node: InetSocketAddress,
   override def receive: Receive = initialPingBehaviour
 
   def initialPingBehaviour: Receive = {
+    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+      logger.info(s"No response from: $node. Stop self")
+      context.stop(self)
     case PingNode =>
       var isConnected: Boolean = false
       parserRequests.getInfo match {
         case Left(th) =>
           logger.warn(s"Can't get node info during initial ping behaviour. Current number of rejected requests if ${numberOfRejectedRequests + 1}", th)
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
         case Right(_) => isConnected = true
       }
       if (isConnected) {
         logger.info(s"Got response from $node. Starting working cycle")
         numberOfRejectedRequests = 0
         context.become(workingCycle)
-      } else if (numberOfRejectedRequests >= 5) {
-        logger.info(s"No response from: $node. Stop self")
-        context.stop(self)
       }
   }
 
   def workingCycle: Receive = {
-    case PingNode if numberOfRejectedRequests < 3 =>
+    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+      logger.info(s"No response from: $node. Stop self")
+      context.stop(self)
+    case PingNode =>
       parserRequests.getInfo match {
         case Left(th) =>
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Info request to $node from SimpleParserController." +
             s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(infoRoute)  =>
@@ -72,7 +76,7 @@ class SimpleNodeParser(node: InetSocketAddress,
       }
       parserRequests.getPeers match {
         case Left(th) =>
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Peers request to $node from SimpleParserController." +
             s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(peersList) =>
@@ -84,10 +88,6 @@ class SimpleNodeParser(node: InetSocketAddress,
 //            s"Sending new peers to parser controller.")
           parserController ! PeersFromApi(peersCollection)
       }
-    case PingNode =>
-      logger.info(s"Number of attempts has expired! Stop self actor for: $node and remove this node from listening peers!")
-//      parserController ! PeerForRemove(node.getAddress)
-      context.stop(self)
 
     case msg => logger.info(s"Got strange message on SimpleNodeParser connected to $node: $msg.")
   }

@@ -30,6 +30,7 @@ class NodeParser(node: InetSocketAddress,
   var lastIds: List[String] = List.empty[String]
   var lastHeaders: List[Header] = List.empty[Header]
   var numberOfRejectedRequests: Int = 0
+  val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -44,10 +45,13 @@ class NodeParser(node: InetSocketAddress,
   override def receive: Receive = prepareCycle
 
   def prepareCycle: Receive = {
-    case PingNode  =>
+    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+      logger.info(s"No response from: $node. Stop self")
+      context.stop(self)
+    case PingNode =>
       parserRequests.getInfo match {
         case Left(th) =>
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during request to during prepareCycle $node", th)
         case Right(infoRoute) =>
           logger.info(s"Get node info on $node during prepare status")
@@ -57,15 +61,19 @@ class NodeParser(node: InetSocketAddress,
     case SetNodeParams(bestBlock, bestHeight) =>
       currentNodeBestBlockId = bestBlock
       currentBestBlockHeight.set(bestHeight)
+      numberOfRejectedRequests = 0
       logger.info(s"Get currentNodeBestBlockId: $currentNodeBestBlockId. currentBestBlockHeight: $currentBestBlockHeight")
       context.become(workingCycle)
   }
 
   def workingCycle: Receive = {
-    case PingNode if numberOfRejectedRequests < 3 =>
+    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+      logger.info(s"No response from: $node. Stop self")
+      context.stop(self)
+    case PingNode =>
       parserRequests.getInfo match {
         case Left(th) =>
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"workingCycle error during request to $node", th)
         case Right(newInfoRoute) if newInfoRoute != currentNodeInfo =>
           logger.info(s"workingCycle Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
@@ -78,7 +86,7 @@ class NodeParser(node: InetSocketAddress,
 
       parserRequests.getPeers match {
         case Left(th) =>
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Peers request to $node", th)
         case Right(peersList) =>
           val peersCollection: Set[InetAddress] = peersList.collect {
@@ -92,7 +100,7 @@ class NodeParser(node: InetSocketAddress,
 
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
         case Left(th) =>
-          numberOfRejectedRequests += 1
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting last ids to $node", th)
         case Right(newLastHeaders) =>
           if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
@@ -113,7 +121,9 @@ class NodeParser(node: InetSocketAddress,
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
       parserRequests.getBlock(fromBlock) match {
-        case Left(th) => logger.info(s"Error during getting block $fromBlock during fork resolution to $node", th)
+        case Left(th) =>
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
+          logger.warn(s"Error during getting block $fromBlock during fork resolution to $node", th)
         case Right(block) =>
           logger.info(s"RIGHT LOOP")
           currentNodeBestBlockId = block.header.id
@@ -130,7 +140,9 @@ class NodeParser(node: InetSocketAddress,
   //side effect
   def updateBestBlock(): Unit = {
     parserRequests.getBlock(currentNodeInfo.bestFullHeaderId) match {
-      case Left(th) => logger.warn(s"Error during update best block on parser $node", th)
+      case Left(th) =>
+        if (!settings.infinitePing) numberOfRejectedRequests += 1
+        logger.warn(s"Error during update best block on parser $node", th)
       case Right(block) =>
         currentNodeBestBlock = block
         logger.info(s"Successfully update best block on $node to ${block.header.id}")
@@ -142,13 +154,16 @@ class NodeParser(node: InetSocketAddress,
     (start to (start + settings.recoverBatchSize)).foreach { height =>
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(th) =>
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during receiving list of block at height $height", th)
           List.empty
         case Right(blocks) => blocks
       }
       blocksAtHeight.headOption.foreach(blockId =>
         parserRequests.getBlock(blockId) match {
-          case Left(th) => logger.warn(s"Error during getting block $blockId", th)
+          case Left(th) =>
+            if (!settings.infinitePing) numberOfRejectedRequests += 1
+            logger.warn(s"Error during getting block $blockId", th)
           case Right(block) =>
             if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
               currentNodeBestBlockId = block.header.id
