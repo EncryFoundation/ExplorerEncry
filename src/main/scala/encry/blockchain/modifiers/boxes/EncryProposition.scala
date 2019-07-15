@@ -2,9 +2,9 @@ package encry.blockchain.modifiers.boxes
 
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}
-import org.encryfoundation.common.Algos
-import org.encryfoundation.common.transaction.EncryAddress.Address
-import org.encryfoundation.common.transaction.{EncryAddress, OpenContract, Pay2ContractHashAddress, Pay2PubKeyAddress, PubKeyLockedContract}
+import org.encryfoundation.common.modifiers.mempool.transaction.EncryAddress.Address
+import org.encryfoundation.common.modifiers.mempool.transaction._
+import org.encryfoundation.common.utils.Algos
 import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
 import scorex.crypto.signatures.PublicKey
 

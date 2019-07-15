@@ -7,7 +7,7 @@ import encry.blockchain.modifiers.boxes.{AssetBox, EncryBaseBox, EncryPropositio
 import encry.utils.CoreTaggedTypes.ModifierId
 import encry.utils.Utils
 import io.circe.{Decoder, Encoder, HCursor}
-import org.encryfoundation.common.Algos
+import org.encryfoundation.common.utils.Algos
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
 import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
 import scorex.crypto.encode.Base16

@@ -51,8 +51,8 @@ CREATE TABLE inputs(
 -- idx SERIAL,
   bxId VARCHAR(64) PRIMARY KEY,
   txId VARCHAR(64) REFERENCES transactions (id),
-  contract VARCHAR(1024) NOT NULL,
-  proofs VARCHAR(1024) NOT NULL
+  contract VARCHAR NOT NULL,
+  proofs VARCHAR NOT NULL
 );
 
 CREATE INDEX tx_id_inputs_index ON inputs (txId);

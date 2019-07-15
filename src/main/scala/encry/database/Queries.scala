@@ -10,13 +10,12 @@ import doobie.implicits._
 import encry.blockchain.modifiers.{Block, DirectiveDBVersion, Header, HeaderDBVersion, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
-import org.encryfoundation.common.Algos
 import doobie.postgres.implicits._
-import scala.collection.immutable
+import org.encryfoundation.common.utils.Algos
 
 object Queries extends StrictLogging {
 
-  def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
+  def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = (for {
     header            <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader      <- insertNodeToHeader(block.header, node)
     txs               <- insertTransactionsQuery(block)
@@ -27,32 +26,32 @@ object Queries extends StrictLogging {
     outputs           <- insertOutputsQuery(block.getDbOutputs)
     dir               <- insertDirectivesQuery(block.payload.txs)
     // _                 <- updateNode(nodeInfo, node)
-  } yield header + nodeToHeader + txs + inputs + nonActiveOutputs + tokens + accounts + outputs
+  } yield for {
+    _ <- header
+    _ <- nodeToHeader
+    _ <- txs
+    _ <- inputs
+    _ <- nonActiveOutputs
+    _ <- tokens
+    _ <- accounts
+    _ <- outputs
+    _ <- dir
+  } yield 1).map {
+    case Left(th) => th.printStackTrace(); throw th
+    case Right(_) => 1
+  }
 
   def removeBlock(addr: InetSocketAddress, block: Block): ConnectionIO[Int] = for {
     directives      <- removeDirectivesQuery(block.payload.txs)
-    outputs         <- {
-      removeOutputsQuery(block.getDbOutputs)
-    }
-    activeOutputs   <- {
-      markOutputsAsActive(block.getDBInputs)
-    }
-    inputs          <- {
-      removeInputsQuery(block.getDBInputs)
-    }
-    txs             <- {
-      removeTransactionsQuery(block)
-    }
-    nodesToHeader    <- {
-      deleteNodeToHeader(block.header, addr)
-    }
-    headers         <- {
-      deleteHeaderQuery(HeaderDBVersion(block))
-    }
+    outputs         <- removeOutputsQuery(block.getDbOutputs)
+    activeOutputs   <- markOutputsAsActive(block.getDBInputs)
+    inputs          <- removeInputsQuery(block.getDBInputs)
+    txs             <- removeTransactionsQuery(block)
+    nodesToHeader   <- deleteNodeToHeader(block.header, addr)
+    headers         <- deleteHeaderQuery(HeaderDBVersion(block))
   } yield directives  + outputs + activeOutputs + inputs + txs + nodesToHeader + headers
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
-    val test = addr.getAddress.getHostName
     sql"""SELECT * FROM public.headers ORDER BY height DESC LIMIT 1;""".query[Header].option
   }
 
@@ -72,7 +71,7 @@ object Queries extends StrictLogging {
   //    Update[(String, Int, String)](query).run(nodeInfo.bestFullHeaderId, nodeInfo.fullHeight, address.getAddress.getHostName)
   //  }
 
-  def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
+  def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       s"""
          |INSERT INTO public.headers (id, version, parent_id, transactionsRoot, timestamp, height, nonce,
@@ -80,14 +79,14 @@ object Queries extends StrictLogging {
          |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderDBVersion](query).run(block)
-  }
+  }.attempt
 
   private def deleteHeaderQuery(header: HeaderDBVersion): ConnectionIO[Int] = {
     val query = """DELETE FROM headers where id = ?;"""
     Update[String](query).run(header.id)
   }
 
-  private def insertTransactionsQuery(block: Block): ConnectionIO[Int] = {
+  private def insertTransactionsQuery(block: Block): ConnectionIO[Either[Throwable, Int]] = {
     val txs: List[DBTransaction] = block.payload.txs.map(tx => DBTransaction(tx, block.header.id))
     val query: String =
       """
@@ -95,34 +94,34 @@ object Queries extends StrictLogging {
         |VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBTransaction](query).updateMany(txs)
-  }
+  }.attempt
 
   private def removeTransactionsQuery(block: Block): ConnectionIO[Int] = {
     val query = """DELETE FROM transactions WHERE id = ?;"""
     Update[String](query).updateMany(block.payload.txs.map(_.id))
   }
 
-  private def insertInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
+  private def insertInputsQuery(inputs: List[DBInput]): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       """
         |INSERT INTO public.inputs (bxId, txId, contract, proofs)
         |VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBInput](query).updateMany(inputs)
-  }
+  }.attempt
 
   private def removeInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
     val query = "DELETE FROM public.inputs WHERE bxId = ?;"
     Update[String](query).updateMany(inputs.map(_.bxId))
   }
 
-  private def markOutputsAsNonActive(inputs: List[DBInput]): ConnectionIO[Int] = {
+  private def markOutputsAsNonActive(inputs: List[DBInput]): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       """
         |UPDATE public.outputs SET isActive = false WHERE id = ?
         |""".stripMargin
     Update[String](query).updateMany(inputs.map(_.bxId))
-  }
+  }.attempt
 
   private def markOutputsAsActive(inputs: List[DBInput]): ConnectionIO[Int] = {
     val query: String =
@@ -132,21 +131,21 @@ object Queries extends StrictLogging {
     Update[String](query).updateMany(inputs.map(_.bxId))
   }
 
-  private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
+  private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       """
         |INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress)
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBOutput](query).updateMany(outputs)
-  }
+  }.attempt
 
   private def removeOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
     val query = """DELETE FROM outputs where id = ?;"""
     Update[String](query).updateMany(outputs.map(_.id))
   }
 
-  private def insertTokens(outputs: List[DBOutput]): ConnectionIO[Int] = {
+  private def insertTokens(outputs: List[DBOutput]): ConnectionIO[Either[Throwable, Int]] = {
     val tokens = outputs.map(output => Token(output.coinId))
     val query: String =
       """
@@ -154,9 +153,9 @@ object Queries extends StrictLogging {
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[Token](query).updateMany(tokens)
-  }
+  }.attempt
 
-  private def insertAccounts(outputs: List[DBOutput]): ConnectionIO[Int] = {
+  private def insertAccounts(outputs: List[DBOutput]): ConnectionIO[Either[Throwable, Int]] = {
     val accounts = outputs.map(output => Account(output.contractHash))
     val query: String =
       """
@@ -164,9 +163,9 @@ object Queries extends StrictLogging {
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[Account](query).updateMany(accounts)
-  }
+  }.attempt
 
-  def insertNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
+  def insertNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Either[Throwable, Int]] = {
     val headerToNode = HeaderToNode(header.id, addr.getAddress.getHostAddress)
     val query: String =
       s"""
@@ -174,7 +173,7 @@ object Queries extends StrictLogging {
          |VALUES(?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderToNode](query).run(headerToNode)
-  }
+  }.attempt
 
   private def deleteNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
     val query = """DELETE FROM headerToNode where nodeIp = ? AND id = ?;"""
@@ -185,7 +184,7 @@ object Queries extends StrictLogging {
     sql"""DELETE FROM public.headers WHERE id = '$headerId';""".query[Int].unique
   }
 
-  private def insertDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {
+  private def insertDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Either[Throwable, Int]] = {
     val directives: Seq[DirectiveDBVersion] = txs.map(tx => tx.id -> tx.directive).flatMap {
       case (id, directives) => directives.zipWithIndex.map {
         case (directive, number) => directive.toDbVersion(Algos.decode(id).getOrElse(Array.emptyByteArray), number)
@@ -197,7 +196,7 @@ object Queries extends StrictLogging {
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DirectiveDBVersion](query).updateMany(directives.toList)
-  }
+  }.attempt
 
   private def removeDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {
     val query = s"""DELETE FROM directives WHERE tx_id = ?;"""

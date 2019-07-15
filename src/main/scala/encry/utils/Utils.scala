@@ -1,7 +1,7 @@
 package encry.utils
 
 import com.google.common.primitives.Longs
-import org.encryfoundation.common.Algos
+import org.encryfoundation.common.utils.Algos
 
 object Utils {
 

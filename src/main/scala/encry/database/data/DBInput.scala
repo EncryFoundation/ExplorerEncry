@@ -1,7 +1,7 @@
 package encry.database.data
 
-import org.encryfoundation.common.Algos
-import org.encryfoundation.common.transaction.Input
+import org.encryfoundation.common.modifiers.mempool.transaction.Input
+import org.encryfoundation.common.utils.Algos
 
 case class DBInput(bxId: String, txId: String, contract: String, proofs: String)
 

@@ -23,6 +23,7 @@ class SimpleNodeParser(node: InetSocketAddress,
   val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
   var numberOfRejectedRequests: Int = 0
+  val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
 
   override def preStart(): Unit = {
     println(s"Starting SNP for $node")
@@ -37,28 +38,34 @@ class SimpleNodeParser(node: InetSocketAddress,
   override def receive: Receive = initialPingBehaviour
 
   def initialPingBehaviour: Receive = {
+    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+      logger.info(s"No response from: $node. Stop self")
+      context.stop(self)
     case PingNode =>
       var isConnected: Boolean = false
       parserRequests.getInfo match {
-        case Left(_) =>
+        case Left(th) =>
+          logger.warn(s"Can't get node info during initial ping behaviour. Current number of rejected requests if ${numberOfRejectedRequests + 1}", th)
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
         case Right(_) => isConnected = true
       }
       if (isConnected) {
-        println(s"Got response from $node. Starting working cycle")
+        logger.info(s"Got response from $node. Starting working cycle")
+        numberOfRejectedRequests = 0
         context.become(workingCycle)
-      } else {
-        println(s"No response from: $node. Stop self ")
-        context.stop(self)
       }
   }
 
   def workingCycle: Receive = {
-    case PingNode if numberOfRejectedRequests < 3 =>
+    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+      logger.info(s"No response from: $node. Stop self")
+      context.stop(self)
+    case PingNode =>
       parserRequests.getInfo match {
-        case Left(err) =>
-          numberOfRejectedRequests += 1
-          logger.info(s"Error during getting Info request to $node: ${err.getMessage} from SimpleParserController." +
-            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
+        case Left(th) =>
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
+          logger.warn(s"Error during getting Info request to $node from SimpleParserController." +
+            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(infoRoute)  =>
           if (infoRoute != currentNodeInfo){
 //          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
@@ -68,10 +75,10 @@ class SimpleNodeParser(node: InetSocketAddress,
 //        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")
       }
       parserRequests.getPeers match {
-        case Left(err) =>
-          numberOfRejectedRequests += 1
-          logger.info(s"Error during getting Peers request to $node: ${err.getMessage} from SimpleParserController." +
-            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
+        case Left(th) =>
+          if (!settings.infinitePing) numberOfRejectedRequests += 1
+          logger.warn(s"Error during getting Peers request to $node from SimpleParserController." +
+            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(peersList) =>
           //todo: add correct filter
           val peersCollection: Set[InetAddress] = peersList.collect {
@@ -81,10 +88,6 @@ class SimpleNodeParser(node: InetSocketAddress,
 //            s"Sending new peers to parser controller.")
           parserController ! PeersFromApi(peersCollection)
       }
-    case PingNode =>
-      logger.info(s"Number of attempts has expired! Stop self actor for: $node and remove this node from listening peers!")
-//      parserController ! PeerForRemove(node.getAddress)
-      context.stop(self)
 
     case msg => logger.info(s"Got strange message on SimpleNodeParser connected to $node: $msg.")
   }
