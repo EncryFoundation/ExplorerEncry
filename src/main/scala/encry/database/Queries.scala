@@ -116,7 +116,6 @@ object Queries extends StrictLogging {
   }
 
   private def markOutputsAsNonActive(inputs: List[DBInput]): ConnectionIO[Either[Throwable, Int]] = {
-    logger.info(s"Marking nonactive outputs: ${inputs.map(_.bxId).mkString(", ")}")
     val query: String =
       """
         |UPDATE public.outputs SET isActive = false WHERE id = ?
@@ -125,7 +124,7 @@ object Queries extends StrictLogging {
   }.attempt
 
   private def markOutputsAsActive(inputs: List[DBInput]): ConnectionIO[Int] = {
-    logger.info(s"Marking nonactive outputs: ${inputs.map(_.bxId).mkString(", ")}")
+    logger.info(s"Marking active outputs: ${inputs.map(_.bxId).mkString(", ")}")
     val query: String =
       """
         |UPDATE public.outputs SET isActive = true WHERE id = ?
@@ -134,7 +133,7 @@ object Queries extends StrictLogging {
   }
 
   private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Either[Throwable, Int]] = {
-    logger.info(s"Inserting outputs:\n${outputs.map(o => s"id: ${o.id}, isActive: ${o.isActive}").mkString("\n")}")
+    //logger.info(s"Inserting outputs:\n${outputs.map(o => s"id: ${o.id}, isActive: ${o.isActive}").mkString("\n")}")
     val query: String =
       """
         |INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress)

@@ -107,10 +107,13 @@ class NodeParser(node: InetSocketAddress,
             logger.info("Get last headers, but node is recovering, so ignore them")
           else {
             if (lastIds.nonEmpty) {
+              logger.info(s"New last headers are:\n$newLastHeaders")
+              logger.info(s"Last ids are:\n$lastIds")
               val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
+              if (commonPoint != newLastHeaders.last && commonPoint != lastIds.last) logger.info(s"FORKFORK $commonPoint, last is ${newLastHeaders.last}")
               val toDelIds: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
               logger.info(s"common point = $commonPoint / toDel = $toDelIds")
-              val toDel = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
+              val toDel: List[Block] = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
               if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
             }
             lastIds = newLastHeaders
