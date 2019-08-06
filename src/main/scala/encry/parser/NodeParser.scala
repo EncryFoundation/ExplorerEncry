@@ -135,6 +135,7 @@ class NodeParser(node: InetSocketAddress,
           self ! Recover
       }
     case Recover if !isRecovering.get() =>
+      logger.info("Starting recovery process")
       recoverNodeChain(currentBestBlockHeight.get(), currentNodeInfo.fullHeight)
     case Recover => logger.info("Trying to recover, but recovering process is started")
     case _ =>
@@ -153,6 +154,7 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def recoverNodeChain(start: Int, end: Int): Unit = Future {
+    logger.info(s"Recovering from $start tot $end")
     isRecovering.set(true)
     (start to (start + settings.recoverBatchSize)).foreach { height =>
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
@@ -162,18 +164,20 @@ class NodeParser(node: InetSocketAddress,
           List.empty
         case Right(blocks) => blocks
       }
-      blocksAtHeight.headOption.foreach(blockId =>
+      blocksAtHeight.headOption.foreach { blockId =>
+        logger.info(s"Best block at $height is $blockId")
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
             logger.warn(s"Error during getting block $blockId", th.getMessage)
           case Right(block) =>
             if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
+              logger.info(s"Got block $blockId, writing to db")
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
               dbActor ! BlockFromNode(block, node, currentNodeInfo)
             }
-        })
+        }}
     }
     isRecovering.set(false)
     if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
