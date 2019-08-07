@@ -7,6 +7,7 @@ import encry.parser.{NodeParser, SimpleNodeParser}
 import encry.settings.ParseSettings
 import akka.actor.SupervisorStrategy.{Restart, Resume, Stop}
 import com.typesafe.scalalogging.StrictLogging
+import encry.ParsersController.BadPeer
 import encry.parser.NodeParser.PeersFromApi
 import encry.parser.SimpleNodeParser.PeerForRemove
 
@@ -14,6 +15,9 @@ import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Actor with StrictLogging {
 
+  var numOfReconnects: Int = 0
+
+  var blackList: Seq[InetAddress] = Seq.empty
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
     //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)
@@ -41,7 +45,7 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
 
   def mainBehaviour(knownPeers: Set[InetAddress]): Receive = {
     case PeersFromApi(peers) =>
-      val newPeers: Set[InetAddress] = peers.diff(knownPeers)
+      val newPeers: Set[InetAddress] = peers.diff(knownPeers) -- blackList
 //      logger.info(s"Got new peers on ParserController. Current knownPeers are: ${knownPeers.mkString(",")}, " +
 //        s"received peers are: ${peers.mkString(",")}, new unique peers are: ${newPeers.mkString(",")}")
       newPeers.foreach { peer =>
@@ -51,6 +55,7 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
       }
       val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
 //      logger.info(s"Resulted peers collection is: ${resultedPeers.mkString(",")}.")
+//      logger.info(s"Current black list is: $blackList")
       context.become(mainBehaviour(resultedPeers))
 
     case PeerForRemove(peer) =>
@@ -58,6 +63,23 @@ class ParsersController(settings: ParseSettings, dbActor: ActorRef) extends Acto
       logger.info(s"Got peer for removing: $peer. Updated collection is: ${updatedPeers.mkString(",")}.")
       context.become(mainBehaviour(updatedPeers))
 
+    case BadPeer(peer) =>
+      numOfReconnects += 1
+      println(numOfReconnects)
+      logger.info(s"Number of reconnects for node $peer is $numOfReconnects")
+      if (numOfReconnects > 0) {
+       blackList = blackList :+ peer
+        numOfReconnects = 0
+      }
+
     case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }
+}
+
+object ParsersController {
+
+  case class PeerForRemove(peer: InetAddress)
+
+  case class BadPeer(peer: InetAddress)
+
 }
