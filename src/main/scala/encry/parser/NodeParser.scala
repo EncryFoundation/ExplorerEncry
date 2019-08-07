@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, UpdatedInfoAboutNode}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser._
 import encry.settings.ParseSettings
 
@@ -132,12 +132,16 @@ class NodeParser(node: InetSocketAddress,
           currentNodeBestBlockId = block.header.id
           currentBestBlockHeight.set(block.header.height)
           dbActor ! DropBlocksFromNode(node, toDel)
-          self ! Recover
+          requestBlockIdsFromDb(currentBestBlockHeight.get() + 1, currentNodeInfo.fullHeight)
       }
     case Recover if !isRecovering.get() =>
       logger.info("Starting recovery process")
-      recoverNodeChain(currentBestBlockHeight.get(), currentNodeInfo.fullHeight)
+      recoverNodeChain(currentBestBlockHeight.get() + 1, currentNodeInfo.fullHeight)
     case Recover => logger.info("Trying to recover, but recovering process is started")
+    case RequestedIdsToDelete(from, to, ids) if isRecovering.get() =>
+      val blocksToDelete = ids.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
+      dbActor ! DropBlocksFromNode(node, blocksToDelete)
+      recoverNodeChain(from, to)
     case _ =>
   }
 
@@ -153,10 +157,18 @@ class NodeParser(node: InetSocketAddress,
     }
   }
 
-  def recoverNodeChain(start: Int, end: Int): Unit = Future {
-    logger.info(s"Recovering from $start tot $end")
+  def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
     isRecovering.set(true)
-    (start to (start + settings.recoverBatchSize)).foreach { height =>
+    val realEnd = math.min(start + settings.recoverBatchSize, end)
+    logger.info(s"Requesting ids of blocks to delete starting from height $start to $realEnd")
+    dbActor ! RequestBlocksIds(start, realEnd)
+  }
+
+  def recoverNodeChain(start: Int, end: Int): Unit = Future {
+    isRecovering.set(true)
+    val realEnd = math.min(start + settings.recoverBatchSize, end)
+    logger.info(s"Recovering from $start to $realEnd")
+    (start to realEnd).foreach { height =>
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
@@ -171,7 +183,7 @@ class NodeParser(node: InetSocketAddress,
             if (!settings.infinitePing) numberOfRejectedRequests += 1
             logger.warn(s"Error during getting block $blockId", th.getMessage)
           case Right(block) =>
-            if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
+            if (currentBestBlockHeight.get() != realEnd) {
               logger.info(s"Got block $blockId, writing to db")
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
@@ -181,7 +193,7 @@ class NodeParser(node: InetSocketAddress,
     }
     isRecovering.set(false)
     if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
-    if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
+    if (currentBestBlockHeight.get() == realEnd) {context.become(awaitDb)}
   }
 
   def awaitDb: Receive = {

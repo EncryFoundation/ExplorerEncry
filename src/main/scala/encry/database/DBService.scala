@@ -54,6 +54,8 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
   def deleteBlock(addr: InetSocketAddress, block: Block): Future[Int] =
     runAsync(removeBlock(addr, block), "deleteBlock")
 
+  def blocksIds(from: Int, to: Int): Future[List[String]] = runAsync(blocksIdsQuery(from, to), "blocksIds")
+
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
     (for { res <- io.transact(pgTransactor) } yield res)
       .unsafeToFuture()
