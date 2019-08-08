@@ -56,12 +56,18 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
 
   def blocksIds(from: Int, to: Int): Future[List[String]] = runAsync(blocksIdsQuery(from, to), "blocksIds")
 
-  private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] =
+  private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] = {
+    val start = System.nanoTime()
     (for { res <- io.transact(pgTransactor) } yield res)
       .unsafeToFuture()
-      .recoverWith {
+      .map { result =>
+        logger.info(s"Query $queryName took ${(System.nanoTime() - start).toDouble / 1000000000} seconds to perform")
+        result
+      }.recoverWith {
         case NonFatal(th) =>
           logger.warn(s"Failed to perform $queryName query with exception ${th.getLocalizedMessage}")
           Future.failed(th)
       }
+  }
+
 }
