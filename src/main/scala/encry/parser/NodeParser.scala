@@ -31,6 +31,7 @@ class NodeParser(node: InetSocketAddress,
   var lastHeaders: List[Header] = List.empty[Header]
   var numberOfRejectedRequests: Int = 0
   val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
+  var blocksToReask: Set[String] = Set.empty
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -71,6 +72,17 @@ class NodeParser(node: InetSocketAddress,
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
     case PingNode =>
+      if (blocksToReask.nonEmpty) blocksToReask.foreach { blockId =>
+        parserRequests.getBlock(blockId) match {
+          case Left(th) =>
+            if (!settings.infinitePing) numberOfRejectedRequests += 1
+            logger.warn(s"Error during getting block $blockId", th)
+          case Right(block) =>
+            blocksToReask -= blockId
+            dbActor ! BlockFromNode(block, node, currentNodeInfo)
+        }
+      }
+
       parserRequests.getInfo match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
@@ -178,7 +190,8 @@ class NodeParser(node: InetSocketAddress,
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
-            logger.warn(s"Error during getting block $blockId", th.getMessage)
+            logger.warn(s"Error during getting block $blockId", th)
+            blocksToReask += blockId
           case Right(block) =>
             if (currentBestBlockHeight.get() != realEnd) {
               logger.info(s"Got block $blockId, writing to db")
