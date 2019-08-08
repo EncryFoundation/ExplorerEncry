@@ -73,6 +73,7 @@ class NodeParser(node: InetSocketAddress,
       context.stop(self)
     case PingNode =>
       if (blocksToReask.nonEmpty) blocksToReask.foreach { blockId =>
+        logger.info(s"Going to reask ${blocksToReask.size} blocks")
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
