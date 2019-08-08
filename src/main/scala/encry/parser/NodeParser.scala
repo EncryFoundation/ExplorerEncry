@@ -53,7 +53,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getInfo match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during request to during prepareCycle $node", th.getMessage)
+          logger.warn(s"Error during request to during prepareCycle $node", th)
         case Right(infoRoute) =>
           logger.info(s"Get node info on $node during prepare status")
           dbActor ! ActivateNodeAndGetNodeInfo(node, infoRoute)
@@ -110,25 +110,7 @@ class NodeParser(node: InetSocketAddress,
           parserController ! PeersFromApi(peersCollection)
       }
 
-      parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
-        case Left(th) =>
-          if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during getting last ids to $node", th.getMessage)
-        case Right(newLastHeaders) =>
-          if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
-            logger.info("Get last headers, but node is recovering, so ignore them")
-          else {
-            if (lastIds.nonEmpty) {
-              val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
-              val toDelIds: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
-              if (toDelIds.nonEmpty) logger.info(s"common point = $commonPoint / toDel = $toDelIds")
-              val toDel: List[Block] = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
-              if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
-            }
-            lastIds = newLastHeaders
-            logger.info(s"Current last id is: ${lastIds.last}")
-          }
-      }
+      calculateCommonPoint(100)
 
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
@@ -152,6 +134,31 @@ class NodeParser(node: InetSocketAddress,
       dbActor ! DropBlocksFromNode(node, blocksToDelete)
       recoverNodeChain(from, to)
     case _ =>
+  }
+
+  def calculateCommonPoint(depth: Int): Unit = parserRequests.getLastIds(depth, currentNodeInfo.fullHeight) match {
+    case Left(th) =>
+      if (!settings.infinitePing) numberOfRejectedRequests += 1
+      logger.warn(s"Error during getting last ids to $node", th)
+    case Right(newLastHeaders) =>
+      if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
+        logger.info("Get last headers, but node is recovering, so ignore them")
+      else {
+        if (lastIds.nonEmpty) {
+          val commonPointOpt: Option[String] = lastIds.reverse.lift(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
+          commonPointOpt match {
+            case Some(commonPoint) =>
+              val toDelIds: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
+              if (toDelIds.nonEmpty) logger.info(s"common point = $commonPoint / toDel = $toDelIds")
+              val toDel: List[Block] = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
+              if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
+            case None if depth + 100 <= currentNodeInfo.fullHeight => calculateCommonPoint(depth + 100)
+            case None =>
+          }
+        }
+        lastIds = newLastHeaders
+        logger.info(s"Current last id is: ${lastIds.last}")
+      }
   }
 
   //side effect
