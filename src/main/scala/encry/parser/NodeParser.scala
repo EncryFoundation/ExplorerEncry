@@ -52,7 +52,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getInfo match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during request to during prepareCycle $node", th)
+          logger.warn(s"Error during request to during prepareCycle $node", th.getMessage)
         case Right(infoRoute) =>
           logger.info(s"Get node info on $node during prepare status")
           dbActor ! ActivateNodeAndGetNodeInfo(node, infoRoute)
@@ -74,7 +74,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getInfo match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"workingCycle error during request to $node", th)
+          logger.warn(s"workingCycle error during request to $node", th.getMessage)
         case Right(newInfoRoute) if newInfoRoute != currentNodeInfo =>
           logger.info(s"workingCycle Update node info on $node to $newInfoRoute|${newInfoRoute == currentNodeInfo}")
             dbActor ! UpdatedInfoAboutNode(node, newInfoRoute, status = true)
@@ -87,7 +87,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getPeers match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during getting Peers request to $node", th)
+          logger.warn(s"Error during getting Peers request to $node", th.getMessage)
         case Right(peersList) =>
           val peersCollection: Set[InetAddress] = peersList.collect {
             case peer =>
@@ -101,7 +101,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during getting last ids to $node", th)
+          logger.warn(s"Error during getting last ids to $node", th.getMessage)
         case Right(newLastHeaders) =>
           if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
             logger.info("Get last headers, but node is recovering, so ignore them")
@@ -123,7 +123,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getBlock(fromBlock) match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during getting block $fromBlock during fork resolution to $node", th)
+          logger.warn(s"Error during getting block $fromBlock during fork resolution to $node", th.getMessage)
         case Right(block) =>
           logger.info(s"RIGHT LOOP")
           currentNodeBestBlockId = block.header.id
@@ -142,7 +142,7 @@ class NodeParser(node: InetSocketAddress,
     parserRequests.getBlock(currentNodeInfo.bestFullHeaderId) match {
       case Left(th) =>
         if (!settings.infinitePing) numberOfRejectedRequests += 1
-        logger.warn(s"Error during update best block on parser $node", th)
+        logger.warn(s"Error during update best block on parser $node", th.getMessage)
       case Right(block) =>
         currentNodeBestBlock = block
         logger.info(s"Successfully update best block on $node to ${block.header.id}")
@@ -155,7 +155,7 @@ class NodeParser(node: InetSocketAddress,
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during receiving list of block at height $height", th)
+          logger.warn(s"Error during receiving list of block at height $height", th.getMessage)
           List.empty
         case Right(blocks) => blocks
       }
@@ -163,7 +163,7 @@ class NodeParser(node: InetSocketAddress,
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
-            logger.warn(s"Error during getting block $blockId", th)
+            logger.warn(s"Error during getting block $blockId", th.getMessage)
           case Right(block) =>
             if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
               currentNodeBestBlockId = block.header.id

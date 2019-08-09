@@ -22,12 +22,12 @@ class ParsersController(settings: ParseSettings,
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
     //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)
-    case msg =>
+    case msg => logger.info(s"Stopping child actor $sender cause of: ${msg.getMessage}.")
       Stop
   }
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(600.millis, blackListSettings.cleanupTime, self, RemoveBadPeer)
+    context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
     logger.info(s"Starting Parsing controller. Try to create listeners for: ${settings.nodes.mkString(",")}")
     settings.nodes.foreach(node =>
       context.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"))
@@ -54,9 +54,11 @@ class ParsersController(settings: ParseSettings,
       val currentNumberOfReconnects: Int = peerReconnects.getOrElse(peer, 0)
       if (currentNumberOfReconnects > 3) {
         blackList = blackList :+ (peer -> System.currentTimeMillis())
+      }
+      else {
+        peerReconnects = peerReconnects.updated(peer, currentNumberOfReconnects +1)
         context.become(mainBehaviour(knownPeers - peer))
       }
-      else peerReconnects = peerReconnects.updated(peer, currentNumberOfReconnects + 1)
 
     case RemoveBadPeer =>
       val peersForRemove: Seq[(InetAddress, Long)] = blackList
@@ -65,6 +67,8 @@ class ParsersController(settings: ParseSettings,
         }
       blackList = blackList.diff(peersForRemove)
       peerReconnects --= peersForRemove.map(_._1)
+      context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
+      context.become(mainBehaviour(knownPeers -- peersForRemove.map(_._1)))
 
     case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }
