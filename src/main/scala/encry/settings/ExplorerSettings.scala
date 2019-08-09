@@ -7,6 +7,7 @@ import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
 
 case class ExplorerSettings(parseSettings: ParseSettings,
+                            blackListSettings: BlackListSettings,
                             databaseSettings: DatabaseSettings,
                             nodeSettings: NodeSettings)
 
