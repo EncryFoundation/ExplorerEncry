@@ -16,5 +16,5 @@ object  ExplorerApp extends App {
   val settings = ExplorerSettings.read
 
   val dbActor = system.actorOf(Props(new DBActor(settings.databaseSettings)), s"dbActor")
-  system.actorOf(Props(new ParsersController(settings.parseSettings, dbActor)), s"parserController")
+  system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
 }

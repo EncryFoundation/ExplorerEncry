@@ -1,16 +1,13 @@
 package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
-
-import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
+import encry.ParsersController.BadPeer
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.UpdatedInfoAboutNode
 import encry.parser.NodeParser.{PeersFromApi, PingNode}
-import encry.parser.SimpleNodeParser.PeerForRemove
 import encry.settings.ParseSettings
-
 import scala.concurrent.duration._
 
 class SimpleNodeParser(node: InetSocketAddress,
@@ -23,32 +20,33 @@ class SimpleNodeParser(node: InetSocketAddress,
   val parserRequests: ParserRequests = ParserRequests(node)
   var currentNodeInfo: InfoRoute = InfoRoute.empty
   var numberOfRejectedRequests: Int = 0
-  val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
 
   override def preStart(): Unit = {
-    println(s"Starting SNP for $node")
+    logger.info(s"Starting SNP for $node")
     context.system.scheduler.schedule(10.seconds, 10.seconds) (self ! PingNode)
   }
 
   override def postStop(): Unit = {
     logger.info(s"Actor $node stopped!!!")
+    parserController ! BadPeer(node.getAddress)
     dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
   }
 
   override def receive: Receive = initialPingBehaviour
 
   def initialPingBehaviour: Receive = {
-    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+    case PingNode if !settings.askNode && (numberOfRejectedRequests > 3) =>
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
     case PingNode =>
       var isConnected: Boolean = false
-      parserRequests.getInfo match {
-        case Left(th) =>
-          logger.warn(s"Can't get node info during initial ping behaviour. Current number of rejected requests if ${numberOfRejectedRequests + 1}", th)
-          if (!settings.infinitePing) numberOfRejectedRequests += 1
-        case Right(_) => isConnected = true
-      }
+        parserRequests.getInfo match {
+          case Left(th) =>
+            logger.warn(s"Can't get node info ${node.getAddress} during initial ping behaviour. " +
+              s"Current number of rejected requests if ${numberOfRejectedRequests + 1}. Cause: ${th.getMessage}")
+            if (!settings.askNode) numberOfRejectedRequests += 1
+          case Right(_) => isConnected = true
+        }
       if (isConnected) {
         logger.info(s"Got response from $node. Starting working cycle")
         numberOfRejectedRequests = 0
@@ -57,13 +55,13 @@ class SimpleNodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
-    case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
+    case PingNode if !settings.askNode && (numberOfRejectedRequests > 3) =>
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
     case PingNode =>
       parserRequests.getInfo match {
         case Left(th) =>
-          if (!settings.infinitePing) numberOfRejectedRequests += 1
+          if (!settings.askNode) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Info request to $node from SimpleParserController." +
             s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(infoRoute)  =>
@@ -76,7 +74,7 @@ class SimpleNodeParser(node: InetSocketAddress,
       }
       parserRequests.getPeers match {
         case Left(th) =>
-          if (!settings.infinitePing) numberOfRejectedRequests += 1
+          if (!settings.askNode) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Peers request to $node from SimpleParserController." +
             s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
         case Right(peersList) =>
