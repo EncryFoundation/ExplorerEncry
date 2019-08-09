@@ -1,6 +1,6 @@
 package encry.parser
 
-import java.net.{InetAddress, InetSocketAddress}
+import java.net.{ConnectException, InetAddress, InetSocketAddress}
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
@@ -45,12 +45,13 @@ class SimpleNodeParser(node: InetSocketAddress,
       context.stop(self)
     case PingNode =>
       var isConnected: Boolean = false
-      parserRequests.getInfo match {
-        case Left(th) =>
-          logger.warn(s"Can't get node info ${node.getAddress} during initial ping behaviour. Current number of rejected requests if ${numberOfRejectedRequests + 1}", th)
-          if (!settings.askNode) numberOfRejectedRequests += 1
-        case Right(_) => isConnected = true
-      }
+        parserRequests.getInfo match {
+          case Left(th) =>
+            logger.warn(s"Can't get node info ${node.getAddress} during initial ping behaviour. " +
+              s"Current number of rejected requests if ${numberOfRejectedRequests + 1}. Cause: ${th.getMessage}")
+            if (!settings.askNode) numberOfRejectedRequests += 1
+          case Right(_) => isConnected = true
+        }
       if (isConnected) {
         logger.info(s"Got response from $node. Starting working cycle")
         numberOfRejectedRequests = 0
