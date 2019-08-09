@@ -18,7 +18,7 @@ class ParsersController(settings: ParseSettings,
                         blackListSettings: BlackListSettings,
                         dbActor: ActorRef) extends Actor with StrictLogging {
 
-  var numOfReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
+  var peerReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
 
   var blackList: Seq[(InetAddress, Long)] = Seq.empty
 
@@ -29,7 +29,7 @@ class ParsersController(settings: ParseSettings,
   }
 
   override def preStart(): Unit = {
-    context.system.scheduler.schedule(600.millis, blackListSettings.cleanupTime) {self ! RemoveBadPeer}
+    context.system.scheduler.schedule(600.millis, blackListSettings.cleanupTime, self, RemoveBadPeer)
     logger.info(s"Starting Parsing controller. Try to create listeners for: ${settings.nodes.mkString(",")}")
     settings.nodes.foreach(node =>
       context.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"))
@@ -52,24 +52,21 @@ class ParsersController(settings: ParseSettings,
       val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
       context.become(mainBehaviour(resultedPeers))
 
-    case PeerForRemove(peer) =>
-      val updatedPeers: Set[InetAddress] = knownPeers - peer
-      logger.info(s"Got peer for removing: $peer. Updated collection is: ${updatedPeers.mkString(",")}.")
-      context.become(mainBehaviour(updatedPeers))
-
     case BadPeer(peer) =>
-      if (numOfReconnects.contains(peer)) numOfReconnects += (peer -> (numOfReconnects(peer) + 1))
-      else numOfReconnects += peer -> 0
-      val badP = numOfReconnects.foldLeft(Seq[(InetAddress, Long)]()) {case (list, (k, v)) =>
-          if (v > 3) list :+ (k, System.currentTimeMillis())
-          else list}
-      blackList = blackList ++: badP
+      val currentNumberOfReconnects: Int = peerReconnects.getOrElse(peer, 0)
+      if (currentNumberOfReconnects > 3) {
+        blackList = blackList :+ (peer -> System.currentTimeMillis())
+        context.become(mainBehaviour(knownPeers - peer))
+      }
+      else peerReconnects = peerReconnects.updated(peer, currentNumberOfReconnects + 1)
 
     case RemoveBadPeer =>
-      val peersForRemove: Seq[(InetAddress, Long)] = blackList.filterNot{case (_, banTime) =>
-    System.currentTimeMillis() - banTime >= blackListSettings.banTime.toMillis}
+      val peersForRemove: Seq[(InetAddress, Long)] = blackList
+        .filter { case (_, banTime) =>
+          System.currentTimeMillis() - banTime >= blackListSettings.banTime.toMillis
+        }
       blackList = blackList.diff(peersForRemove)
-      numOfReconnects --=  peersForRemove.map(_._1)
+      peerReconnects --= peersForRemove.map(_._1)
 
     case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }
@@ -77,8 +74,6 @@ class ParsersController(settings: ParseSettings,
 }
 
 object ParsersController {
-
-  final case class PeerForRemove(peer: InetAddress) extends AnyVal
 
   final case class BadPeer(peer: InetAddress) extends AnyVal
 

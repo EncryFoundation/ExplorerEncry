@@ -2,14 +2,12 @@ package encry.parser
 
 import java.net.{ConnectException, InetAddress, InetSocketAddress}
 
-import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.BadPeer
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.UpdatedInfoAboutNode
 import encry.parser.NodeParser.{PeersFromApi, PingNode}
-import encry.parser.SimpleNodeParser.PeerForRemove
 import encry.settings.ParseSettings
 
 import scala.concurrent.duration._
@@ -33,7 +31,6 @@ class SimpleNodeParser(node: InetSocketAddress,
   override def postStop(): Unit = {
     logger.info(s"Actor $node stopped!!!")
     parserController ! BadPeer(node.getAddress)
-    parserController ! PeerForRemove(node.getAddress)
     dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
   }
 
