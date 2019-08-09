@@ -1,7 +1,6 @@
 package encry
 
 import java.net.{InetAddress, InetSocketAddress}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import encry.parser.{NodeParser, SimpleNodeParser}
@@ -10,7 +9,6 @@ import akka.actor.SupervisorStrategy.{Restart, Resume, Stop}
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.parser.NodeParser.PeersFromApi
-import encry.parser.SimpleNodeParser.PeerForRemove
 
 import scala.concurrent.duration._
 
@@ -77,6 +75,6 @@ object ParsersController {
 
   final case class BadPeer(peer: InetAddress) extends AnyVal
 
-  final case object RemoveBadPeer
+  case object RemoveBadPeer
 
 }

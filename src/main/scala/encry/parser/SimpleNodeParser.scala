@@ -1,7 +1,6 @@
 package encry.parser
 
-import java.net.{ConnectException, InetAddress, InetSocketAddress}
-
+import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.BadPeer
@@ -9,7 +8,6 @@ import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.UpdatedInfoAboutNode
 import encry.parser.NodeParser.{PeersFromApi, PingNode}
 import encry.settings.ParseSettings
-
 import scala.concurrent.duration._
 
 class SimpleNodeParser(node: InetSocketAddress,
@@ -24,7 +22,7 @@ class SimpleNodeParser(node: InetSocketAddress,
   var numberOfRejectedRequests: Int = 0
 
   override def preStart(): Unit = {
-    println(s"Starting SNP for $node")
+    logger.info(s"Starting SNP for $node")
     context.system.scheduler.schedule(10.seconds, 10.seconds) (self ! PingNode)
   }
 
