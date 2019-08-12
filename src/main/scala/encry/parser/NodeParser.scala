@@ -77,7 +77,7 @@ class NodeParser(node: InetSocketAddress,
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
-            logger.warn(s"Error during getting block $blockId", th)
+            logger.warn(s"Error during getting block $blockId", th.getCause)
           case Right(block) =>
             blocksToReask -= blockId
             dbActor ! BlockFromNode(block, node, currentNodeInfo)
@@ -140,7 +140,7 @@ class NodeParser(node: InetSocketAddress,
   def calculateCommonPoint(depth: Int): Unit = parserRequests.getLastIds(depth, currentNodeInfo.fullHeight) match {
     case Left(th) =>
       if (!settings.infinitePing) numberOfRejectedRequests += 1
-      logger.warn(s"Error during getting last ids to $node", th)
+      logger.warn(s"Error during getting last ids to $node", th.getCause)
     case Right(newLastHeaders) =>
       if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
         logger.info("Get last headers, but node is recovering, so ignore them")
@@ -211,7 +211,7 @@ class NodeParser(node: InetSocketAddress,
     }
     isRecovering.set(false)
     if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
-    if (currentBestBlockHeight.get() == realEnd) {context.become(awaitDb)}
+    if (currentBestBlockHeight.get() == realEnd) context.become(awaitDb)
   }
 
   def awaitDb: Receive = {
