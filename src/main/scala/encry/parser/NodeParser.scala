@@ -72,7 +72,7 @@ class NodeParser(node: InetSocketAddress,
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
     case PingNode =>
-      if (blocksToReask.nonEmpty) blocksToReask.foreach { blockId =>
+      blocksToReask.foreach { blockId =>
         logger.info(s"Going to reask ${blocksToReask.size} blocks")
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
