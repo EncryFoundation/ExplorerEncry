@@ -117,7 +117,7 @@ object Queries extends StrictLogging {
          |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
          |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
-    Update[HeaderDBVersion](query, jdkLogHandler).run(block)
+    Update[HeaderDBVersion](query, None, jdkLogHandler).run(block)
   }.attempt
 
   private def deleteHeaderQuery(header: HeaderDBVersion): ConnectionIO[Int] = {
@@ -132,7 +132,7 @@ object Queries extends StrictLogging {
         |INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId)
         |VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    Update[DBTransaction](query, jdkLogHandler).updateMany(txs)
+    Update[DBTransaction](query, None, jdkLogHandler).updateMany(txs)
   }.attempt
 
   private def removeTransactionsQuery(block: Block): ConnectionIO[Int] = {
@@ -146,7 +146,7 @@ object Queries extends StrictLogging {
         |INSERT INTO public.inputs (bxId, txId, contract, proofs)
         |VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    Update[DBInput](query, jdkLogHandler).updateMany(inputs)
+    Update[DBInput](query, None, jdkLogHandler).updateMany(inputs)
   }.attempt
 
   private def removeInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
@@ -159,7 +159,7 @@ object Queries extends StrictLogging {
       """
         |UPDATE public.outputs SET isActive = false WHERE id = ?
         |""".stripMargin
-    Update[String](query, jdkLogHandler).updateMany(inputs.map(_.bxId))
+    Update[String](query, None, jdkLogHandler).updateMany(inputs.map(_.bxId))
   }.attempt
 
   private def markOutputsAsActive(inputs: List[DBInput]): ConnectionIO[Int] = {
@@ -176,7 +176,7 @@ object Queries extends StrictLogging {
         |INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress)
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    Update[DBOutput](query, jdkLogHandler).updateMany(outputs)
+    Update[DBOutput](query, None, jdkLogHandler).updateMany(outputs)
   }.attempt
 
   private def removeOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
@@ -191,7 +191,7 @@ object Queries extends StrictLogging {
         |INSERT INTO public.tokens (id)
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    Update[Token](query, jdkLogHandler).updateMany(tokens)
+    Update[Token](query, None, jdkLogHandler).updateMany(tokens)
   }.attempt
 
   private def insertAccounts(outputs: List[DBOutput]): ConnectionIO[Either[Throwable, Int]] = {
@@ -201,7 +201,7 @@ object Queries extends StrictLogging {
         |INSERT INTO public.accounts (contractHash)
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    Update[Account](query, jdkLogHandler).updateMany(accounts)
+    Update[Account](query, None, jdkLogHandler).updateMany(accounts)
   }.attempt
 
   def insertNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Either[Throwable, Int]] = {
@@ -211,7 +211,7 @@ object Queries extends StrictLogging {
          |INSERT INTO public.headerToNode (id, nodeIp)
          |VALUES(?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
-    Update[HeaderToNode](query, jdkLogHandler).run(headerToNode)
+    Update[HeaderToNode](query, None, jdkLogHandler).run(headerToNode)
   }.attempt
 
   private def deleteNodeToHeader(header: Header, addr: InetSocketAddress): ConnectionIO[Int] = {
@@ -234,7 +234,7 @@ object Queries extends StrictLogging {
         |INSERT INTO public.directives (tx_id, number_in_tx, type_id, is_valid, contract_hash, amount, address, token_id_opt, data_field)
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    Update[DirectiveDBVersion](query, jdkLogHandler).updateMany(directives.toList)
+    Update[DirectiveDBVersion](query, None, jdkLogHandler).updateMany(directives.toList)
   }.attempt
 
   private def removeDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {
