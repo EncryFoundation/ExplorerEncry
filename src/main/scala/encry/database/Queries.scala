@@ -11,9 +11,45 @@ import encry.blockchain.modifiers.{Block, DirectiveDBVersion, Header, HeaderDBVe
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
 import doobie.postgres.implicits._
+import doobie.util.log.{ExecFailure, LogHandler, ProcessingFailure, Success}
 import org.encryfoundation.common.utils.Algos
 
 object Queries extends StrictLogging {
+
+  implicit val jdkLogHandler: LogHandler = {
+    LogHandler {
+
+      case Success(s, a, e1, e2) =>
+        logger.info(s"""Successful Statement Execution:
+                          |
+                          |  ${s.linesIterator.dropWhile(_.trim.isEmpty).mkString("\n  ")}
+                          |
+                          | arguments = [${a.mkString(", ")}]
+                          |   elapsed = ${e1.toMillis} ms exec + ${e2.toMillis} ms processing (${(e1 + e2).toMillis} ms total)
+      """.stripMargin)
+
+      case ProcessingFailure(s, a, e1, e2, t) =>
+        logger.info(s"""Failed Resultset Processing:
+                            |
+                            |  ${s.linesIterator.dropWhile(_.trim.isEmpty).mkString("\n  ")}
+                            |
+                            | arguments = [${a.mkString(", ")}]
+                            |   elapsed = ${e1.toMillis} ms exec + ${e2.toMillis} ms processing (failed) (${(e1 + e2).toMillis} ms total)
+                            |   failure = ${t.getMessage}
+      """.stripMargin)
+
+      case ExecFailure(s, a, e1, t) =>
+        logger.info(s"""Failed Statement Execution:
+                            |
+                            |  ${s.linesIterator.dropWhile(_.trim.isEmpty).mkString("\n  ")}
+                            |
+                            | arguments = [${a.mkString(", ")}]
+                            |   elapsed = ${e1.toMillis} ms exec (failed)
+                            |   failure = ${t.getMessage}
+      """.stripMargin)
+
+    }
+  }
 
   def blocksIdsQuery(from: Int, to: Int): ConnectionIO[List[String]] =
     sql"""SELECT id FROM headers WHERE height >= $from AND height <= $to""".query[String].to[List]
@@ -77,7 +113,7 @@ object Queries extends StrictLogging {
   def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       s"""
-         |EXPLAIN ANALYZE INSERT INTO public.headers (id, version, parent_id, transactionsRoot, timestamp, height, nonce,
+         |INSERT INTO public.headers (id, version, parent_id, transactionsRoot, timestamp, height, nonce,
          |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
          |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
@@ -93,7 +129,7 @@ object Queries extends StrictLogging {
     val txs: List[DBTransaction] = block.payload.txs.map(tx => DBTransaction(tx, block.header.id))
     val query: String =
       """
-        |EXPLAIN ANALYZE INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId)
+        |INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId)
         |VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBTransaction](query).updateMany(txs)
@@ -107,7 +143,7 @@ object Queries extends StrictLogging {
   private def insertInputsQuery(inputs: List[DBInput]): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       """
-        |EXPLAIN ANALYZE INSERT INTO public.inputs (bxId, txId, contract, proofs)
+        |INSERT INTO public.inputs (bxId, txId, contract, proofs)
         |VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBInput](query).updateMany(inputs)
@@ -121,7 +157,7 @@ object Queries extends StrictLogging {
   private def markOutputsAsNonActive(inputs: List[DBInput]): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       """
-        |EXPLAIN ANALYZE UPDATE public.outputs SET isActive = false WHERE id = ?
+        |UPDATE public.outputs SET isActive = false WHERE id = ?
         |""".stripMargin
     Update[String](query).updateMany(inputs.map(_.bxId))
   }.attempt
@@ -137,7 +173,7 @@ object Queries extends StrictLogging {
   private def insertOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Either[Throwable, Int]] = {
     val query: String =
       """
-        |EXPLAIN ANALYZE INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress)
+        |INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress)
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DBOutput](query).updateMany(outputs)
@@ -152,7 +188,7 @@ object Queries extends StrictLogging {
     val tokens = outputs.map(output => Token(output.coinId))
     val query: String =
       """
-        |EXPLAIN ANALYZE INSERT INTO public.tokens (id)
+        |INSERT INTO public.tokens (id)
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[Token](query).updateMany(tokens)
@@ -162,7 +198,7 @@ object Queries extends StrictLogging {
     val accounts = outputs.map(output => Account(output.contractHash))
     val query: String =
       """
-        |EXPLAIN ANALYZE INSERT INTO public.accounts (contractHash)
+        |INSERT INTO public.accounts (contractHash)
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[Account](query).updateMany(accounts)
@@ -172,7 +208,7 @@ object Queries extends StrictLogging {
     val headerToNode = HeaderToNode(header.id, addr.getAddress.getHostAddress)
     val query: String =
       s"""
-         |EXPLAIN ANALYZE INSERT INTO public.headerToNode (id, nodeIp)
+         |INSERT INTO public.headerToNode (id, nodeIp)
          |VALUES(?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderToNode](query).run(headerToNode)
@@ -195,7 +231,7 @@ object Queries extends StrictLogging {
     }
     val query: String =
       """
-        |EXPLAIN ANALYZE INSERT INTO public.directives (tx_id, number_in_tx, type_id, is_valid, contract_hash, amount, address, token_id_opt, data_field)
+        |INSERT INTO public.directives (tx_id, number_in_tx, type_id, is_valid, contract_hash, amount, address, token_id_opt, data_field)
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     Update[DirectiveDBVersion](query).updateMany(directives.toList)
