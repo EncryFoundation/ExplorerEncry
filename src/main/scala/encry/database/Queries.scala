@@ -42,7 +42,7 @@ object Queries extends StrictLogging {
                             |  ${s.linesIterator.dropWhile(_.trim.isEmpty).mkString("\n  ")}
                             |
                             |   elapsed = ${e1.toMillis} ms exec (failed)
-                            |   failure = ${t.getMessage}
+                            |   failure = ${t.printStackTrace()}
       """.stripMargin)
 
     }
