@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, UpdatedInfoAboutNode}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser._
 import encry.settings.ParseSettings
 
@@ -31,6 +31,7 @@ class NodeParser(node: InetSocketAddress,
   var lastHeaders: List[Header] = List.empty[Header]
   var numberOfRejectedRequests: Int = 0
   val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
+  var blocksToReask: Set[String] = Set.empty
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -52,7 +53,7 @@ class NodeParser(node: InetSocketAddress,
       parserRequests.getInfo match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during request to during prepareCycle $node", th.getMessage)
+          logger.warn(s"Error during request to during prepareCycle $node", th)
         case Right(infoRoute) =>
           logger.info(s"Get node info on $node during prepare status")
           dbActor ! ActivateNodeAndGetNodeInfo(node, infoRoute)
@@ -71,6 +72,18 @@ class NodeParser(node: InetSocketAddress,
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
     case PingNode =>
+      blocksToReask.foreach { blockId =>
+        logger.info(s"Going to reask ${blocksToReask.size} blocks")
+        parserRequests.getBlock(blockId) match {
+          case Left(th) =>
+            if (!settings.infinitePing) numberOfRejectedRequests += 1
+            logger.warn(s"Error during getting block $blockId", th.getCause)
+          case Right(block) =>
+            blocksToReask -= blockId
+            dbActor ! BlockFromNode(block, node, currentNodeInfo)
+        }
+      }
+
       parserRequests.getInfo match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
@@ -98,25 +111,7 @@ class NodeParser(node: InetSocketAddress,
           parserController ! PeersFromApi(peersCollection)
       }
 
-      parserRequests.getLastIds(100, currentNodeInfo.fullHeight) match {
-        case Left(th) =>
-          if (!settings.infinitePing) numberOfRejectedRequests += 1
-          logger.warn(s"Error during getting last ids to $node", th.getMessage)
-        case Right(newLastHeaders) =>
-          if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
-            logger.info("Get last headers, but node is recovering, so ignore them")
-          else {
-            if (lastIds.nonEmpty) {
-              val commonPoint: String = lastIds.reverse(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
-              val toDelIds: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
-              logger.info(s"common point = $commonPoint / toDel = $toDelIds")
-              val toDel = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
-              if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
-            }
-            lastIds = newLastHeaders
-            logger.info(s"Current last id is: ${lastIds.last}")
-          }
-      }
+      calculateCommonPoint(100)
 
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
@@ -129,12 +124,42 @@ class NodeParser(node: InetSocketAddress,
           currentNodeBestBlockId = block.header.id
           currentBestBlockHeight.set(block.header.height)
           dbActor ! DropBlocksFromNode(node, toDel)
-          self ! Recover
+          requestBlockIdsFromDb(currentBestBlockHeight.get() + 1, currentNodeInfo.fullHeight)
       }
     case Recover if !isRecovering.get() =>
-      recoverNodeChain(currentBestBlockHeight.get(), currentNodeInfo.fullHeight)
+      logger.info("Starting recovery process")
+      recoverNodeChain(currentBestBlockHeight.get() + 1, currentNodeInfo.fullHeight)
     case Recover => logger.info("Trying to recover, but recovering process is started")
+    case RequestedIdsToDelete(from, to, ids) if isRecovering.get() =>
+      val blocksToDelete = ids.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
+      dbActor ! DropBlocksFromNode(node, blocksToDelete)
+      recoverNodeChain(from, to)
     case _ =>
+  }
+
+  def calculateCommonPoint(depth: Int): Unit = parserRequests.getLastIds(depth, currentNodeInfo.fullHeight) match {
+    case Left(th) =>
+      if (!settings.infinitePing) numberOfRejectedRequests += 1
+      logger.warn(s"Error during getting last ids to $node", th.getCause)
+    case Right(newLastHeaders) =>
+      if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
+        logger.info("Get last headers, but node is recovering, so ignore them")
+      else {
+        if (lastIds.nonEmpty) {
+          val commonPointOpt: Option[String] = lastIds.reverse.lift(lastIds.reverse.takeWhile(elem => !newLastHeaders.contains(elem)).length)
+          commonPointOpt match {
+            case Some(commonPoint) =>
+              val toDelIds: List[String] = lastIds.reverse.takeWhile(_ != commonPoint)
+              if (toDelIds.nonEmpty) logger.info(s"common point = $commonPoint / toDel = $toDelIds")
+              val toDel: List[Block] = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
+              if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
+            case None if depth + 100 <= currentNodeInfo.fullHeight => calculateCommonPoint(depth + 100)
+            case None =>
+          }
+        }
+        lastIds = newLastHeaders
+        logger.info(s"Current last id is: ${lastIds.last}")
+      }
   }
 
   //side effect
@@ -149,9 +174,18 @@ class NodeParser(node: InetSocketAddress,
     }
   }
 
+  def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
+    isRecovering.set(true)
+    val realEnd = math.min(start + settings.recoverBatchSize, end)
+    logger.info(s"Requesting ids of blocks to delete starting from height $start to $realEnd")
+    dbActor ! RequestBlocksIds(start, realEnd)
+  }
+
   def recoverNodeChain(start: Int, end: Int): Unit = Future {
     isRecovering.set(true)
-    (start to (start + settings.recoverBatchSize)).foreach { height =>
+    val realEnd = math.min(start + settings.recoverBatchSize, end)
+    logger.info(s"Recovering from $start to $realEnd")
+    (start to realEnd).foreach { height =>
       val blocksAtHeight: List[String] = parserRequests.getBlocksAtHeight(height) match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
@@ -159,22 +193,25 @@ class NodeParser(node: InetSocketAddress,
           List.empty
         case Right(blocks) => blocks
       }
-      blocksAtHeight.headOption.foreach(blockId =>
+      blocksAtHeight.headOption.foreach { blockId =>
+        logger.info(s"Best block at $height is $blockId")
         parserRequests.getBlock(blockId) match {
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
-            logger.warn(s"Error during getting block $blockId", th.getMessage)
+            logger.warn(s"Error during getting block $blockId", th)
+            blocksToReask += blockId
           case Right(block) =>
-            if (currentBestBlockHeight.get() != (start + settings.recoverBatchSize)) {
+            if (currentBestBlockHeight.get() != realEnd) {
+              logger.info(s"Got block $blockId, writing to db")
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
               dbActor ! BlockFromNode(block, node, currentNodeInfo)
             }
-        })
+        }}
     }
     isRecovering.set(false)
     if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
-    if (currentBestBlockHeight.get() == (start + settings.recoverBatchSize)) {context.become(awaitDb)}
+    if (currentBestBlockHeight.get() == realEnd) context.become(awaitDb)
   }
 
   def awaitDb: Receive = {

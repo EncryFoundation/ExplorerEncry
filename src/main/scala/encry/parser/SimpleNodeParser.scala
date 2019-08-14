@@ -43,7 +43,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         parserRequests.getInfo match {
           case Left(th) =>
             logger.warn(s"Can't get node info ${node.getAddress} during initial ping behaviour. " +
-              s"Current number of rejected requests if ${numberOfRejectedRequests + 1}. Cause: ${th.getMessage}")
+              s"Current number of rejected requests if ${numberOfRejectedRequests + 1}")
             if (!settings.askNode) numberOfRejectedRequests += 1
           case Right(_) => isConnected = true
         }
@@ -63,7 +63,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         case Left(th) =>
           if (!settings.askNode) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Info request to $node from SimpleParserController." +
-            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
+            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
         case Right(infoRoute)  =>
           if (infoRoute != currentNodeInfo){
 //          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
@@ -76,7 +76,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         case Left(th) =>
           if (!settings.askNode) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Peers request to $node from SimpleParserController." +
-            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.", th)
+            s" Add +1 attempt to numberOfRejectedRequests. current is: $numberOfRejectedRequests.")
         case Right(peersList) =>
           //todo: add correct filter
           val peersCollection: Set[InetAddress] = peersList.collect {

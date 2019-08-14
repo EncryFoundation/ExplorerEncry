@@ -15,6 +15,9 @@ import org.encryfoundation.common.utils.Algos
 
 object Queries extends StrictLogging {
 
+  def blocksIdsQuery(from: Int, to: Int): ConnectionIO[List[String]] =
+    sql"""SELECT id FROM headers WHERE height >= $from AND height <= $to""".query[String].to[List]
+
   def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = (for {
     header            <- insertHeaderQuery(HeaderDBVersion(block))
     nodeToHeader      <- insertNodeToHeader(block.header, node)
