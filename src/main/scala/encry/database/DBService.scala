@@ -1,38 +1,22 @@
 package encry.database
 
 import java.net.InetSocketAddress
+
 import com.typesafe.scalalogging.StrictLogging
 import encry.settings.DatabaseSettings
-import com.zaxxer.hikari.HikariDataSource
-import doobie.hikari.implicits._
-import cats.effect.IO
+import cats.effect.{Blocker, IO}
 import doobie.free.connection.ConnectionIO
 import doobie.implicits._
 import doobie.hikari.HikariTransactor
+import doobie.postgres.implicits._
 import encry.blockchain.nodeRoutes.InfoRoute
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext.Implicits.global
 import Queries._
 import encry.blockchain.modifiers.{Block, Header}
-import encry.database.data.Node
 
-case class DBService(settings: DatabaseSettings) extends StrictLogging {
-
-  private lazy val dataSource = new HikariDataSource
-
-  dataSource.setJdbcUrl(settings.host)
-  dataSource.setUsername(settings.user)
-  dataSource.setPassword(settings.password)
-  dataSource.setMaximumPoolSize(settings.maxPoolSize)
-
-  private lazy val pgTransactor: HikariTransactor[IO] = HikariTransactor[IO](dataSource)
-
-  def shutdown(): Future[Unit] = {
-    logger.info("Shutting down dbService")
-    pgTransactor.shutdown.unsafeToFuture
-  }
+case class DBService(settings: DatabaseSettings, transactor: HikariTransactor[IO]) extends StrictLogging {
 
   def getNodeInfo(addr: InetSocketAddress): Future[Option[Header]] = {
     runAsync(nodeInfoQuery(addr), "nodeInfo")
@@ -48,7 +32,7 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
     }
 
 
-  def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute): Future[Int] =
+  def insertBlockFromNode(block: Block, nodeAddr: InetSocketAddress, nodeInfo: InfoRoute): Future[List[String]] =
     runAsync(processBlock(block, nodeAddr, nodeInfo), "blockInsert")
 
   def deleteBlock(addr: InetSocketAddress, block: Block): Future[Int] =
@@ -57,17 +41,15 @@ case class DBService(settings: DatabaseSettings) extends StrictLogging {
   def blocksIds(from: Int, to: Int): Future[List[String]] = runAsync(blocksIdsQuery(from, to), "blocksIds")
 
   private def runAsync[A](io: ConnectionIO[A], queryName: String): Future[A] = {
-    val start = System.nanoTime()
-    (for { res <- io.transact(pgTransactor) } yield res)
+    (for {
+      res <- io.transact(transactor)
+    } yield res)
       .unsafeToFuture()
-      .map { result =>
-        logger.info(s"Query $queryName took ${(System.nanoTime() - start).toDouble / 1000000000} seconds to perform")
-        result
-      }.recoverWith {
-        case NonFatal(th) =>
-          logger.warn(s"Failed to perform $queryName query with exception ${th.getLocalizedMessage}")
-          Future.failed(th)
-      }
+      .recoverWith {
+      case NonFatal(th) =>
+        logger.warn(s"Failed to perform $queryName query with exception ${th.getLocalizedMessage}")
+        Future.failed(th)
+    }
   }
 
 }

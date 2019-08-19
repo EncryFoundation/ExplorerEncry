@@ -9,7 +9,7 @@ lazy val settings = Seq(
 
 val akkaVersion = "2.5.13"
 val akkaHttpVersion = "10.0.9"
-val doobieVersion = "0.5.2"
+val doobieVersion = "0.8.0-SNAPSHOT"
 val logbackVersion = "1.2.3"
 val circeVersion = "0.9.2"
 

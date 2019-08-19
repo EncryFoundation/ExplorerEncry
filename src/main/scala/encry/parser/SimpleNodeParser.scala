@@ -1,18 +1,20 @@
 package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
+
 import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.BadPeer
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.UpdatedInfoAboutNode
+import encry.database.DBService
 import encry.parser.NodeParser.{PeersFromApi, PingNode}
 import encry.settings.ParseSettings
+
 import scala.concurrent.duration._
 
 class SimpleNodeParser(node: InetSocketAddress,
                        parserController: ActorRef,
-                       dbActor: ActorRef,
+                       dbService: DBService,
                        settings: ParseSettings) extends Actor with StrictLogging {
 
   import context.dispatcher
@@ -29,7 +31,7 @@ class SimpleNodeParser(node: InetSocketAddress,
   override def postStop(): Unit = {
     logger.info(s"Actor $node stopped!!!")
     parserController ! BadPeer(node.getAddress)
-    dbActor ! UpdatedInfoAboutNode(node, currentNodeInfo, status = false)
+    dbService.activateNode(node, currentNodeInfo, false)
   }
 
   override def receive: Receive = initialPingBehaviour
@@ -67,7 +69,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         case Right(infoRoute)  =>
           if (infoRoute != currentNodeInfo){
 //          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
-          dbActor ! UpdatedInfoAboutNode(node, infoRoute, status = true)
+            dbService.activateNode(node, currentNodeInfo, true)
           currentNodeInfo = infoRoute
           }
 //        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")
@@ -96,8 +98,8 @@ object SimpleNodeParser {
 
   def props(node: InetSocketAddress,
             parserController: ActorRef,
-            dbActor: ActorRef,
-            settings: ParseSettings): Props = Props(new SimpleNodeParser(node, parserController, dbActor, settings))
+            dbService: DBService,
+            settings: ParseSettings): Props = Props(new SimpleNodeParser(node, parserController, dbService, settings))
 
   case class PeerForRemove(peer: InetAddress)
 }
