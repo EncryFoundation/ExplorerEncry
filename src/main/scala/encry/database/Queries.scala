@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import cats.Applicative
 import cats.free.Free
 import cats.implicits._
+import cats.effect._
 import com.typesafe.scalalogging.StrictLogging
 import doobie.free.connection
 import doobie.free.connection.ConnectionIO
@@ -16,6 +17,8 @@ import encry.database.data._
 import doobie.postgres.implicits._
 import doobie.util.log.{ExecFailure, LogHandler, ProcessingFailure, Success}
 import org.encryfoundation.common.utils.Algos
+
+import scala.concurrent.duration.MILLISECONDS
 
 object Queries extends StrictLogging {
 
@@ -34,6 +37,15 @@ object Queries extends StrictLogging {
     dir               <- insertDirectivesQuery(block.payload.txs)
     // _                 <- updateNode(nodeInfo, node)
   } yield header ++ nodeToHeader ++ txs ++ inputs ++ nonActiveOutputs ++ tokens ++ accounts ++ outputs ++ dir
+
+  def processBlockWithTimer(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[(List[String], Long)] = {
+    val clock: Clock[ConnectionIO] = Clock.create[ConnectionIO]
+    for {
+      start  <- clock.monotonic(MILLISECONDS)
+      query  <- processBlock(block, node, nodeInfo)
+      finish <- clock.monotonic(MILLISECONDS)
+    } yield (query, finish - start)
+  }
 
   def removeBlock(addr: InetSocketAddress, block: Block): ConnectionIO[Int] = for {
     directives      <- removeDirectivesQuery(block.payload.txs)
