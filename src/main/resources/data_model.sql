@@ -31,8 +31,6 @@ CREATE TABLE headerToNode(
   nodeIp VARCHAR(128) REFERENCES nodes (ip)
 );
 
-CREATE INDEX header_id_to_node_index ON headerToNode (id);
-
 CREATE INDEX height_index ON headers (height);
 
 CREATE TABLE transactions(
@@ -87,7 +85,6 @@ CREATE TABLE outputs(
 );
 
 CREATE INDEX txId_outputs_index ON outputs (txId);
-CREATE INDEX coinId_outputs_index ON outputs (coinId);
 CREATE INDEX contractHash_outputs_index ON outputs (contractHash);
 
 CREATE TABLE directives(
