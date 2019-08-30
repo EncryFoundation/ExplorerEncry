@@ -1,31 +1,35 @@
 package encry.database
 
 import java.net.{InetAddress, InetSocketAddress}
+import java.sql.SQLTransientException
 
 import akka.pattern._
 import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.Block
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RecoveryMode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
 import encry.settings.DatabaseSettings
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.util.control.NonFatal
 
-class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
+class DBActor(settings: DatabaseSettings, dbService: DBService) extends Actor with StrictLogging {
 
-  val dbService = DBService(settings)
   implicit val ec: ExecutionContextExecutor = context.dispatcher
+  var recovery = false
 
   override def receive: Receive = {
+    case RecoveryMode(state) => recovery = state
+
     case ActivateNodeAndGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute) =>
       dbService
         .activateOrGetNodeInfo(addr, infoRoute)
         .map(nodeInfo => SetNodeParams(nodeInfo.id, nodeInfo.height))
         .pipeTo(sender())
 
-    case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) =>
+    case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) if !recovery =>
       dbService.activateNode(addr, infoRoute, status)
 
     case BlockFromNode(block, nodeAddr, nodeInfo) =>
@@ -33,6 +37,13 @@ class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
         s"from node ${nodeAddr.getAddress.getHostAddress}")
       dbService
         .insertBlockFromNode(block, nodeAddr, nodeInfo)
+        .recoverWith {
+          case th: SQLTransientException =>
+            self ! BlockFromNode(block, nodeAddr, nodeInfo)
+            logger.warn(s"Trying to rewrite block ${block.header.id}")
+            Future.failed(th)
+          case NonFatal(th) => Future.failed(th)
+        }
         .map(_ => GetCurrentHeight(block.header.height))
         .pipeTo(sender())
 
@@ -60,5 +71,7 @@ object DBActor {
   case class RequestBlocksIds(from: Int, to: Int)
 
   case class RequestedIdsToDelete(from: Int, to: Int, ids: List[String])
+
+  case class RecoveryMode(state: Boolean)
 
 }

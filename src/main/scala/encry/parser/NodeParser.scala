@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RecoveryMode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser._
 import encry.settings.ParseSettings
 
@@ -71,18 +71,8 @@ class NodeParser(node: InetSocketAddress,
     case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
-    case PingNode =>
-      blocksToReask.foreach { blockId =>
-        logger.info(s"Going to reask ${blocksToReask.size} blocks")
-        parserRequests.getBlock(blockId) match {
-          case Left(th) =>
-            if (!settings.infinitePing) numberOfRejectedRequests += 1
-            logger.warn(s"Error during getting block $blockId", th.getCause)
-          case Right(block) =>
-            blocksToReask -= blockId
-            dbActor ! BlockFromNode(block, node, currentNodeInfo)
-        }
-      }
+    case PingNode if !isRecovering.get() =>
+      reaskBlocks
 
       parserRequests.getInfo match {
         case Left(th) =>
@@ -111,7 +101,9 @@ class NodeParser(node: InetSocketAddress,
           parserController ! PeersFromApi(peersCollection)
       }
 
-      calculateCommonPoint(100)
+      calculateCommonPoint(15)
+
+    case PingNode => reaskBlocks
 
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
@@ -153,7 +145,7 @@ class NodeParser(node: InetSocketAddress,
               if (toDelIds.nonEmpty) logger.info(s"common point = $commonPoint / toDel = $toDelIds")
               val toDel: List[Block] = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
               if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
-            case None if depth + 100 <= currentNodeInfo.fullHeight => calculateCommonPoint(depth + 100)
+            case None if depth + 15 <= currentNodeInfo.fullHeight => calculateCommonPoint(depth + 100)
             case None =>
           }
         }
@@ -174,8 +166,21 @@ class NodeParser(node: InetSocketAddress,
     }
   }
 
+  def reaskBlocks() = blocksToReask.foreach { blockId =>
+    logger.info(s"Going to reask ${blocksToReask.size} blocks")
+    parserRequests.getBlock(blockId) match {
+      case Left(th) =>
+        if (!settings.infinitePing) numberOfRejectedRequests += 1
+        logger.warn(s"Error during getting block $blockId", th.getCause)
+      case Right(block) =>
+        blocksToReask -= blockId
+        dbActor ! BlockFromNode(block, node, currentNodeInfo)
+    }
+  }
+
   def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
     isRecovering.set(true)
+    dbActor ! RecoveryMode(true)
     val realEnd = math.min(start + settings.recoverBatchSize, end)
     logger.info(s"Requesting ids of blocks to delete starting from height $start to $realEnd")
     dbActor ! RequestBlocksIds(start, realEnd)
@@ -183,6 +188,7 @@ class NodeParser(node: InetSocketAddress,
 
   def recoverNodeChain(start: Int, end: Int): Unit = Future {
     isRecovering.set(true)
+    dbActor ! RecoveryMode(true)
     val realEnd = math.min(start + settings.recoverBatchSize, end)
     logger.info(s"Recovering from $start to $realEnd")
     (start to realEnd).foreach { height =>
@@ -202,27 +208,31 @@ class NodeParser(node: InetSocketAddress,
             blocksToReask += blockId
           case Right(block) =>
             if (currentBestBlockHeight.get() != realEnd) {
-              logger.info(s"Got block $blockId, writing to db")
+              logger.info(s"Got block $blockId at height $height, writing to db")
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
               dbActor ! BlockFromNode(block, node, currentNodeInfo)
             }
         }}
     }
-    isRecovering.set(false)
-    if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.become(workingCycle)
-    if (currentBestBlockHeight.get() == realEnd) context.become(awaitDb)
+    if (currentBestBlockHeight.get() == realEnd) {
+      logger.info("Switching to awaitDb")
+      context.become(awaitDb)
+    }
   }
 
   def awaitDb: Receive = {
     case GetCurrentHeight(height) =>
+      logger.info(s"last height is $height")
       if (height == currentBestBlockHeight.get()) {
+        isRecovering.set(false)
+        dbActor ! RecoveryMode(false)
         context.become(workingCycle)
         if (height != currentNodeInfo.fullHeight) {
           self ! Recover
         }
       }
-    case _ =>
+    case x => println(x)
   }
 }
 
