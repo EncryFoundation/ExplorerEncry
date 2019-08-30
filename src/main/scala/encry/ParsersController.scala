@@ -1,6 +1,7 @@
 package encry
 
 import java.net.{InetAddress, InetSocketAddress}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import encry.parser.{NodeParser, SimpleNodeParser}
@@ -10,6 +11,7 @@ import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.parser.NodeParser.PeersFromApi
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings,

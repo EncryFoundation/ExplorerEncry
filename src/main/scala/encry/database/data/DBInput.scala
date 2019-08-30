@@ -12,10 +12,7 @@ object DBInput {
     new DBInput(
       Algos.encode(input.boxId),
       txId,
-     input.contract match {
-       case i if i.isRight => s"RegularContract - ${i.map(_.contract.script).toString}"
-       case i  => s"CompiledContract - ${i.left.map(_.script).toString}"
-     },
+     input.contract.fold(c => Algos.encode(c.hash), c => Algos.encode(c.contract.hash)),
       input.proofs.map(_.toString).mkString(",")
     )
 

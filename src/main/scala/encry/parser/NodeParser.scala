@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import scala.concurrent.duration._
 import akka.actor.{Actor, ActorRef}
+import cats.kernel.Monoid
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
@@ -31,7 +32,8 @@ class NodeParser(node: InetSocketAddress,
   var lastHeaders: List[Header] = List.empty[Header]
   var numberOfRejectedRequests: Int = 0
   val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
-  var blocksToReask: Set[String] = Set.empty
+  var blocksToReask: Set[Int] = Set.empty
+  var blocksToWrite: Set[String] = Set.empty
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -68,9 +70,12 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
+    case GetCurrentHeight(_, blockId) => blocksToWrite -= blockId
+
     case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
       logger.info(s"No response from: $node. Stop self")
       context.stop(self)
+
     case PingNode if !isRecovering.get() =>
       reaskBlocks
 
@@ -166,16 +171,27 @@ class NodeParser(node: InetSocketAddress,
     }
   }
 
-  def reaskBlocks() = blocksToReask.foreach { blockId =>
+  def reaskBlocks(): Unit = blocksToReask.foreach { height =>
     logger.info(s"Going to reask ${blocksToReask.size} blocks")
-    parserRequests.getBlock(blockId) match {
+    parserRequests.getBlocksAtHeight(height) match {
       case Left(th) =>
         if (!settings.infinitePing) numberOfRejectedRequests += 1
-        logger.warn(s"Error during getting block $blockId", th.getCause)
-      case Right(block) =>
-        blocksToReask -= blockId
-        dbActor ! BlockFromNode(block, node, currentNodeInfo)
+        logger.warn(s"Error during receiving list of block at height $height", th.getMessage)
+      case Right(blocks) => blocks.headOption.foreach { blockId =>
+        parserRequests.getBlock(blockId).map { block =>
+          blocksToReask -= height
+          dbActor ! BlockFromNode(block, node, currentNodeInfo)
+        }
+      }
     }
+    //parserRequests.getBlock(blockId) match {
+    //  case Left(th) =>
+    //    if (!settings.infinitePing) numberOfRejectedRequests += 1
+    //    logger.warn(s"Error during getting block $blockId", th.getCause)
+    //  case Right(block) =>
+    //    blocksToReask -= blockId
+    //    dbActor ! BlockFromNode(block, node, currentNodeInfo)
+    //}
   }
 
   def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
@@ -205,12 +221,13 @@ class NodeParser(node: InetSocketAddress,
           case Left(th) =>
             if (!settings.infinitePing) numberOfRejectedRequests += 1
             logger.warn(s"Error during getting block $blockId", th)
-            blocksToReask += blockId
+            blocksToReask += height
           case Right(block) =>
             if (currentBestBlockHeight.get() != realEnd) {
               logger.info(s"Got block $blockId at height $height, writing to db")
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
+              blocksToWrite += blockId
               dbActor ! BlockFromNode(block, node, currentNodeInfo)
             }
         }}
@@ -222,9 +239,11 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def awaitDb: Receive = {
-    case GetCurrentHeight(height) =>
+    case GetCurrentHeight(height, blockId) =>
       logger.info(s"last height is $height")
-      if (height == currentBestBlockHeight.get()) {
+      blocksToWrite -= blockId
+      logger.info(s"blocksToWrite size is ${blocksToWrite.size}")
+      if (blocksToWrite.isEmpty) {
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
         context.become(workingCycle)
@@ -243,7 +262,7 @@ object NodeParser {
 
   case object PingNode
 
-  case class GetCurrentHeight(height: Int)
+  case class GetCurrentHeight(height: Int, blockId: String)
 
   case object CheckForRollback
 

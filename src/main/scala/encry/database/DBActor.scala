@@ -44,7 +44,7 @@ class DBActor(settings: DatabaseSettings, dbService: DBService) extends Actor wi
             Future.failed(th)
           case NonFatal(th) => Future.failed(th)
         }
-        .map(_ => GetCurrentHeight(block.header.height))
+        .map(_ => GetCurrentHeight(block.header.height, block.header.id))
         .pipeTo(sender())
 
     case DropBlocksFromNode(addr: InetSocketAddress, blocks: List[Block]) =>
