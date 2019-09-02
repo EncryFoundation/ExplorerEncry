@@ -224,7 +224,7 @@ class NodeParser(node: InetSocketAddress,
             }
         }}
     }
-    if (currentBestBlockHeight.get() == realEnd) {
+    if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
       logger.info("Switching to awaitDb")
       context.become(awaitDb)
     }

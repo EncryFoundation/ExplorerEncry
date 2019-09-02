@@ -11,7 +11,6 @@ import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.parser.NodeParser.PeersFromApi
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings,
@@ -47,7 +46,7 @@ class ParsersController(settings: ParseSettings,
       newPeers.foreach { peer =>
         val newAddress: InetSocketAddress = new InetSocketAddress(peer, 9051)
         logger.info(s"Creating SimpleNode parser for: $newAddress...")
-        context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings), name = s"SNP${peer.getHostName}")
+        //context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings), name = s"SNP${peer.getHostName}")
       }
       val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
       context.become(mainBehaviour(resultedPeers))
