@@ -113,36 +113,15 @@ CREATE INDEX hash_wallet_index ON wallet (hash);
 
 CREATE FUNCTION emp_stamp() RETURNS trigger AS $emp_stamp$
 
-DECLARE
-oldVal bigint DEFAULT  0;
-newVal bigint DEFAULT  0;
-hashh varchar(64) DEFAULT '';
-tok varchar(64) DEFAULT '';
-rowss int;
-
 BEGIN
 IF (TG_OP = 'INSERT') THEN
-        rowss := (select * from tmp11(NEW.contractHash, NEW.coinId));
-             IF     rowss = 0 THEN oldVal := 0;
-             ELSEIF rowss > 0 THEN oldVal := (SELECT amount FROM wallet where hash = NEW.contractHash AND tokenId = NEW.coinId);
-        END IF;
-        newVal := oldVal + NEW.monetaryValue;
-		hashh := NEW.contractHash;
-		tok := NEW.coinId;
-		INSERT INTO wallet(hash, amount, tokenId) values(hashh, newVal, tok)
-		ON CONFLICT (hash, tokenId) DO UPDATE SET amount = newVal;
-		rowss := 0;
+		INSERT INTO wallet AS w(hash, amount, tokenId) values(NEW.contractHash, NEW.monetaryValue, NEW.coinId)
+		ON CONFLICT (hash, tokenId) DO UPDATE SET amount = w.amount + NEW.monetaryValue;
         RETURN NEW;
 
 ELSEIF (TG_OP = 'DELETE') THEN
-        rowss := (select * from tmp11(OLD.contractHash, OLD.coinId));
-		oldVal := (SELECT amount FROM wallet where hash = OLD.contractHash AND tokenId = OLD.coinId);
-        newVal := oldVal - OLD.monetaryValue;
-		hashh := OLD.contractHash;
-		tok := OLD.coinId;
-		INSERT INTO wallet(hash, amount, tokenId) values(hashh, newVal, tok)
-		ON CONFLICT (hash, tokenId) DO UPDATE SET amount = newVal;
-		rowss := 0;
+        INSERT INTO wallet AS w(hash, amount, tokenId) values(NEW.contractHash, NEW.monetaryValue, NEW.coinId)
+        		ON CONFLICT (hash, tokenId) DO UPDATE SET amount = w.amount - NEW.monetaryValue;
         RETURN OLD;
 		END IF;
     END;
@@ -150,16 +129,3 @@ $emp_stamp$ LANGUAGE plpgsql;
 
 CREATE TRIGGER emp_stamp AFTER INSERT OR DELETE ON outputs
     FOR EACH ROW EXECUTE PROCEDURE emp_stamp();
-
-    CREATE OR REPLACE FUNCTION tmp11(i varchar(64), b varchar(64))
-RETURNS int AS $$
-DECLARE
-numrows int;
-BEGIN
-perform amount from wallet where hash = i AND tokenId = b;
-GET DIAGNOSTICS numrows := ROW_COUNT;
-IF numrows = 0 THEN numrows := 0;
-END IF;
-RETURN numrows;
-END;
-$$ LANGUAGE 'plpgsql';

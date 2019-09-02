@@ -77,7 +77,7 @@ class NodeParser(node: InetSocketAddress,
       context.stop(self)
 
     case PingNode if !isRecovering.get() =>
-      reaskBlocks
+      reaskBlocks()
 
       parserRequests.getInfo match {
         case Left(th) =>
@@ -108,7 +108,7 @@ class NodeParser(node: InetSocketAddress,
 
       calculateCommonPoint(15)
 
-    case PingNode => reaskBlocks
+    case PingNode => reaskBlocks()
 
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
@@ -184,14 +184,6 @@ class NodeParser(node: InetSocketAddress,
         }
       }
     }
-    //parserRequests.getBlock(blockId) match {
-    //  case Left(th) =>
-    //    if (!settings.infinitePing) numberOfRejectedRequests += 1
-    //    logger.warn(s"Error during getting block $blockId", th.getCause)
-    //  case Right(block) =>
-    //    blocksToReask -= blockId
-    //    dbActor ! BlockFromNode(block, node, currentNodeInfo)
-    //}
   }
 
   def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
@@ -251,7 +243,7 @@ class NodeParser(node: InetSocketAddress,
           self ! Recover
         }
       }
-    case x => println(x)
+    case _ =>
   }
 }
 

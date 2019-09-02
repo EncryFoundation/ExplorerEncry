@@ -10,12 +10,11 @@ import encry.blockchain.modifiers.Block
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RecoveryMode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
-import encry.settings.DatabaseSettings
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.control.NonFatal
 
-class DBActor(settings: DatabaseSettings, dbService: DBService) extends Actor with StrictLogging {
+class DBActor(dbService: DBService) extends Actor with StrictLogging {
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
   var recovery = false

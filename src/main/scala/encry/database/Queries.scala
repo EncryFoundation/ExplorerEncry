@@ -2,55 +2,45 @@ package encry.database
 
 import java.net.InetSocketAddress
 
-import cats.Applicative
 import cats.free.Free
 import cats.implicits._
-import cats.effect._
-import cats.syntax._
 import com.typesafe.scalalogging.StrictLogging
-import doobie.free.connection
-import doobie.postgres.hi
-import doobie.free.connection.{ConnectionIO, ConnectionOp}
+import doobie.free.connection.ConnectionIO
 import doobie.util.update.Update
 import doobie.implicits._
 import encry.blockchain.modifiers.{Block, DirectiveDBVersion, Header, HeaderDBVersion, Transaction}
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.data._
 import doobie.postgres.implicits._
-import doobie.util.Put
 import doobie.util.fragment.Fragment
-import doobie.util.log.{ExecFailure, LogHandler, ProcessingFailure, Success}
 import org.encryfoundation.common.utils.Algos
-
-import scala.concurrent.duration.MILLISECONDS
 
 object Queries extends StrictLogging {
 
   def blocksIdsQuery(from: Int, to: Int): ConnectionIO[List[String]] =
     sql"""SELECT id FROM headers WHERE height >= $from AND height <= $to""".query[String].to[List]
 
-  def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Int] = for {
-    header            <- insertHeaderQuery(HeaderDBVersion(block))
-    nodeToHeader      <- insertNodeToHeader(block.header, node)
-    txs               <- insertTransactionsQuery(block)
-    inputs            <- insertInputsQuery(block.getDBInputs)
-    nonActiveOutputs  <- markOutputsAsNonActive(block.getDBInputs)
-    tokens            <- insertTokens(block.getDbOutputs)
-    accounts          <- insertAccounts(block.getDbOutputs)
-    outputs           <- insertOutputsQuery(block.getDbOutputs)
-    dir               <- insertDirectivesQuery(block.payload.txs)
-    // _                 <- updateNode(nodeInfo, node)
-    } yield 1
+  def processBlock(block: Block, node: InetSocketAddress, nodeInfo: InfoRoute): ConnectionIO[Unit] = for {
+    _ <- insertHeaderQuery(HeaderDBVersion(block))
+    _ <- insertNodeToHeader(block.header, node)
+    _ <- insertTransactionsQuery(block)
+    _ <- insertInputsQuery(block.getDBInputs)
+    _ <- markOutputsAsNonActive(block.getDBInputs)
+    _ <- insertTokens(block.getDbOutputs)
+    _ <- insertAccounts(block.getDbOutputs)
+    _ <- insertOutputsQuery(block.getDbOutputs)
+    _ <- insertDirectivesQuery(block.payload.txs)
+  } yield ()
 
-  def removeBlock(addr: InetSocketAddress, block: Block): ConnectionIO[Int] = for {
-    directives      <- removeDirectivesQuery(block.payload.txs)
-    outputs         <- removeOutputsQuery(block.getDbOutputs)
-    activeOutputs   <- markOutputsAsActive(block.getDBInputs)
-    inputs          <- removeInputsQuery(block.getDBInputs)
-    txs             <- removeTransactionsQuery(block)
-    nodesToHeader   <- deleteNodeToHeader(block.header, addr)
-    headers         <- deleteHeaderQuery(HeaderDBVersion(block))
-  } yield directives  + outputs + activeOutputs + inputs + txs + nodesToHeader + headers
+  def removeBlock(addr: InetSocketAddress, block: Block): ConnectionIO[Unit] = for {
+    _ <- removeDirectivesQuery(block.payload.txs)
+    _ <- removeOutputsQuery(block.getDbOutputs)
+    _ <- markOutputsAsActive(block.getDBInputs)
+    _ <- removeInputsQuery(block.getDBInputs)
+    _ <- removeTransactionsQuery(block)
+    _ <- deleteNodeToHeader(block.header, addr)
+    _ <- deleteHeaderQuery(HeaderDBVersion(block))
+  } yield ()
 
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
     sql"""SELECT * FROM public.headers ORDER BY height DESC LIMIT 1;""".query[Header].option
@@ -66,11 +56,6 @@ object Queries extends StrictLogging {
          """.stripMargin
     Update[Node](query).run(nodeIns)
   }
-
-  //  def updateNode(nodeInfo: InfoRoute, address: InetSocketAddress): ConnectionIO[Int] = {
-  //    val query = "UPDATE public.nodes SET lastFullBlock = ?, lastFullHeight = ? WHERE ip = ?"
-  //    Update[(String, Int, String)](query).run(nodeInfo.bestFullHeaderId, nodeInfo.fullHeight, address.getAddress.getHostName)
-  //  }
 
   def insertHeaderQuery(block: HeaderDBVersion): ConnectionIO[Int] = {
     val query: String =
@@ -96,19 +81,6 @@ object Queries extends StrictLogging {
         txs.lastOption.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId})").get ++
         fr" ON CONFLICT DO NOTHING;").update.run
     }.reduceLeft(_ *> _)
-
-    //val query: String =
-    //  """
-    //    |INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId)
-    //    |VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
-    //    |""".stripMargin
-    ////txs.traverse(Update[DBTransaction](query).explainAnalyze).map(_.flatten)
-    //val in = fr"INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId) VALUES " ++
-    //  txs.init.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId}), ").fold(Fragment.empty)(_ ++ _) ++
-    //  txs.lastOption.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId})").get ++
-    //  fr" ON CONFLICT DO NOTHING RETURNING 1;"
-    ////Update[DBTransaction](query).updateMany(txs)
-    //in.query[Int].unique
   }
 
   private def removeTransactionsQuery(block: Block): ConnectionIO[Int] = {
@@ -130,13 +102,6 @@ object Queries extends StrictLogging {
           fr" ON CONFLICT DO NOTHING;").update.run
       }.reduceLeft(_ *> _)
     } else Free.pure(0)
-    //inputs.traverse(Update[DBInput](query).explainAnalyze).map(_.flatten)
-    //val in = fr"INSERT INTO public.inputs (bxId, txId, contract, proofs) " ++
-    //  inputs.init.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contract}, ${i.proofs}), ").fold(Fragment.empty)(_ ++ _) ++
-    //  inputs.lastOption.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contract}, ${i.proofs})").get ++
-    //  fr" ON CONFLICT DO NOTHING RETURNING 1;"
-    //Update[DBInput](query).updateMany(inputs)
-    //in.query[Int].unique
   }
 
   private def removeInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
@@ -149,7 +114,6 @@ object Queries extends StrictLogging {
       """
         |UPDATE public.outputs SET isActive = false WHERE id = ?
         |""".stripMargin
-    //inputs.map(_.bxId).traverse(Update[String](query).explainAnalyze).map(_.flatten)
     Update[String](query).updateMany(inputs.map(_.bxId))
   }
 
@@ -176,13 +140,6 @@ object Queries extends StrictLogging {
           fr" ON CONFLICT DO NOTHING;").update.run
       }.reduceLeft(_ *> _)
     } else Free.pure(0)
-    //outputs.traverse(Update[DBOutput](query).explainAnalyze).map(_.flatten)
-    //val in = fr"INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress) " ++
-    //  outputs.init.map(o => fr"(${o.id}, ${o.boxType}, ${o.txId}, ${o.monetaryValue}, ${o.coinId}, ${o.contractHash}, ${o.data}, ${o.isActive}, ${o.minerAddress}), ").fold(Fragment.empty)(_ ++ _) ++
-    //  outputs.lastOption.map(o => fr"(${o.id}, ${o.boxType}, ${o.txId}, ${o.monetaryValue}, ${o.coinId}, ${o.contractHash}, ${o.data}, ${o.isActive}, ${o.minerAddress})").get ++
-    //  fr" ON CONFLICT DO NOTHING RETURNING 1;"
-    //Update[DBOutput](query).updateMany(outputs)
-    //in.query[Int].unique
   }
 
   private def removeOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
@@ -197,7 +154,6 @@ object Queries extends StrictLogging {
         |INSERT INTO public.tokens (id)
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    //tokens.traverse(Update[Token](query).explainAnalyze).map(_.flatten)
     Update[Token](query).updateMany(tokens)
   }
 
@@ -208,7 +164,6 @@ object Queries extends StrictLogging {
         |INSERT INTO public.accounts (contractHash)
         |VALUES (?) ON CONFLICT DO NOTHING;
         |""".stripMargin
-    //accounts.traverse(Update[Account](query).explainAnalyze).map(_.flatten)
     Update[Account](query).updateMany(accounts)
   }
 
@@ -250,13 +205,6 @@ object Queries extends StrictLogging {
           fr" ON CONFLICT DO NOTHING;").update.run
       }.reduceLeft(_ *> _)
     } else Free.pure(0)
-    //directives.toList.traverse(Update[DirectiveDBVersion](query).explainAnalyze).map(_.flatten)
-    //val in = fr"INSERT INTO public.directives (tx_id, number_in_tx, type_id, is_valid, contract_hash, amount, address, token_id_opt, data_field) " ++
-    //  directives.init.map(d => fr"(${d.txId}, ${d.numberInTx}, ${d.dTypeId}, ${d.isValid}, ${d.contractHash}, ${d.amount}, ${d.address}, ${d.tokenIdOpt}, ${d.data}), ").fold(Fragment.empty)(_ ++ _) ++
-    //  directives.lastOption.map(d => fr"(${d.txId}, ${d.numberInTx}, ${d.dTypeId}, ${d.isValid}, ${d.contractHash}, ${d.amount}, ${d.address}, ${d.tokenIdOpt}, ${d.data})").get ++
-    //  fr" ON CONFLICT DO NOTHING RETURNING 1;"
-    //Update[DirectiveDBVersion](query).updateMany(directives.toList)
-       // in.query[Int].unique
   }
 
   private def removeDirectivesQuery(txs: Seq[Transaction]): ConnectionIO[Int] = {

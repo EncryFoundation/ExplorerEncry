@@ -23,7 +23,7 @@ object  ExplorerApp extends App {
   implicit val cs = IO.contextShift(ExecutionContext.global)
 
   val pgTransactor = for {
-    ce <- ExecutionContexts.fixedThreadPool[IO](5)
+    ce <- ExecutionContexts.fixedThreadPool[IO](settings.databaseSettings.maxPoolSize)
     te <- ExecutionContexts.cachedThreadPool[IO]
     xa <- HikariTransactor.newHikariTransactor[IO](
       "org.postgresql.Driver",
@@ -36,15 +36,14 @@ object  ExplorerApp extends App {
   } yield xa
 
   pgTransactor.use { xa =>
-    //PrepareQueries.prepareHeaderInsertQuery.transact(xa).orElse(IO.unit) *>
     xa.configure { ds =>
       IO {
-        ds.setMaximumPoolSize(5)
-        ds.setConnectionTimeout(60000)
+        ds.setMaximumPoolSize(settings.databaseSettings.maxPoolSize)
+        ds.setConnectionTimeout(settings.databaseSettings.connectionTimeout)
       }
     } *> IO {
-      val dbService = DBService(settings.databaseSettings, xa)
-      val dbActor = system.actorOf(Props(new DBActor(settings.databaseSettings, dbService)), s"dbActor")
+      val dbService = DBService(xa)
+      val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
       system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
     } *> IO.never
   }.unsafeRunSync()
