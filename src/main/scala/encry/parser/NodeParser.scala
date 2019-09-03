@@ -79,6 +79,7 @@ class NodeParser(node: InetSocketAddress,
       context.stop(self)
 
     case PingNode if !isRecovering.get() =>
+      logger.info("Ping")
       reaskBlocks()
 
       parserRequests.getInfo match {
@@ -110,7 +111,9 @@ class NodeParser(node: InetSocketAddress,
 
       calculateCommonPoint(15)
 
-    case PingNode => reaskBlocks()
+    case PingNode =>
+      logger.info(s"Going to reask blocks while recovering (${blocksToReask.size} blocks to reask)")
+      reaskBlocks()
 
     case ResolveFork(fromBlock, toDel) =>
       logger.info(s"Resolving fork from block: $fromBlock")
