@@ -193,6 +193,7 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
+    logger.info("2 Setting recovery to true")
     isRecovering.set(true)
     dbActor ! RecoveryMode(true)
     val realEnd = math.min(start + settings.recoverBatchSize, end)
@@ -201,6 +202,7 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def recoverNodeChain(start: Int, end: Int): Unit = Future {
+    logger.info("1 Setting recovery to true")
     isRecovering.set(true)
     dbActor ! RecoveryMode(true)
     val realEnd = math.min(start + settings.recoverBatchSize, end)
@@ -247,6 +249,7 @@ class NodeParser(node: InetSocketAddress,
       blocksToWrite --= oldOnes.keys
       blocksToReask ++= oldOnes.values.map(_._2)
       if (blocksToWrite.isEmpty) {
+        logger.info("Setting recovery to false")
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
         context.become(workingCycle)
