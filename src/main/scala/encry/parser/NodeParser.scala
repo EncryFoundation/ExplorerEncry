@@ -33,7 +33,7 @@ class NodeParser(node: InetSocketAddress,
   var numberOfRejectedRequests: Int = 0
   val maxNumberOfRejects: Option[Int] = if (settings.infinitePing) None else settings.numberOfAttempts
   var blocksToReask: Set[Int] = Set.empty
-  var blocksToWrite: Set[String] = Set.empty
+  var blocksToWrite: Map[String, (Long, Int)] = Map.empty
 
   override def preStart(): Unit = {
     logger.info(s"Start monitoring: ${node.getAddress}")
@@ -182,6 +182,7 @@ class NodeParser(node: InetSocketAddress,
       case Right(blocks) => blocks.headOption.foreach { blockId =>
         parserRequests.getBlock(blockId).map { block =>
           blocksToReask -= height
+          blocksToWrite += blockId -> (System.nanoTime(), height)
           dbActor ! BlockFromNode(block, node, currentNodeInfo)
         }
       }
@@ -221,7 +222,7 @@ class NodeParser(node: InetSocketAddress,
               logger.info(s"Got block $blockId at height $height, writing to db")
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
-              blocksToWrite += blockId
+              blocksToWrite += blockId -> (System.nanoTime(), height)
               dbActor ! BlockFromNode(block, node, currentNodeInfo)
             }
         }}
@@ -237,6 +238,11 @@ class NodeParser(node: InetSocketAddress,
       logger.info(s"last height is $height")
       blocksToWrite -= blockId
       logger.info(s"blocksToWrite size is ${blocksToWrite.size}")
+      val currentMonotonic = System.nanoTime()
+      val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 60000000000L)
+      logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
+      blocksToWrite --= oldOnes.keys
+      blocksToReask ++= oldOnes.values.map(_._2)
       if (blocksToWrite.isEmpty) {
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
