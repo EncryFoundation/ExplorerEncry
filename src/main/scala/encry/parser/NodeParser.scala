@@ -133,7 +133,7 @@ class NodeParser(node: InetSocketAddress,
       val blocksToDelete = ids.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
       dbActor ! DropBlocksFromNode(node, blocksToDelete)
       recoverNodeChain(from, to)
-    case _ =>
+    case x => logger.info(s"Strange msg: $x")
   }
 
   def calculateCommonPoint(depth: Int): Unit = parserRequests.getLastIds(depth, currentNodeInfo.fullHeight) match {
