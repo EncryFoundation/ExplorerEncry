@@ -232,6 +232,7 @@ class NodeParser(node: InetSocketAddress,
             }
         }}
     }
+    if (blocksToWrite.isEmpty) isRecovering.set(true)
     if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
       logger.info("Switching to awaitDb")
       context.become(awaitDb)
