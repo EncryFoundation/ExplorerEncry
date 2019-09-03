@@ -263,6 +263,7 @@ class NodeParser(node: InetSocketAddress,
       if (oldOnes.nonEmpty) logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
       blocksToWrite --= oldOnes.keys
       blocksToReask ++= oldOnes.values.map(_._2)
+      reaskBlocks()
   }
 }
 
