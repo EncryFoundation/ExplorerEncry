@@ -1,7 +1,6 @@
 package encry.database
 
 import java.net.{InetAddress, InetSocketAddress}
-import java.sql.SQLTransientException
 
 import akka.pattern._
 import akka.actor.Actor
@@ -10,10 +9,8 @@ import encry.blockchain.modifiers.Block
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RecoveryMode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
-import org.postgresql.util.PSQLException
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
-import scala.util.control.NonFatal
 
 class DBActor(dbService: DBService) extends Actor with StrictLogging {
 
@@ -37,13 +34,6 @@ class DBActor(dbService: DBService) extends Actor with StrictLogging {
         s"from node ${nodeAddr.getAddress.getHostAddress}")
       dbService
         .insertBlockFromNode(block, nodeAddr, nodeInfo)
-        .recoverWith {
-          case th @ (_: SQLTransientException | _: PSQLException) =>
-            self ! BlockFromNode(block, nodeAddr, nodeInfo)
-            logger.warn(s"Trying to rewrite block ${block.header.id}")
-            Future.failed(th)
-          case NonFatal(th) => Future.failed(th)
-        }
         .map(_ => GetCurrentHeight(block.header.height, block.header.id))
         .pipeTo(sender())
 

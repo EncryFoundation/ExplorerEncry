@@ -243,7 +243,7 @@ class NodeParser(node: InetSocketAddress,
       logger.info(s"blocksToWrite size is ${blocksToWrite.size}")
       val currentMonotonic = System.nanoTime()
       val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 60000000000L)
-      logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
+      if (oldOnes.nonEmpty) logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
       blocksToWrite --= oldOnes.keys
       blocksToReask ++= oldOnes.values.map(_._2)
       if (blocksToWrite.isEmpty) {
@@ -254,7 +254,12 @@ class NodeParser(node: InetSocketAddress,
           self ! Recover
         }
       }
-    case _ =>
+    case PingNode =>
+      val currentMonotonic = System.nanoTime()
+      val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 60000000000L)
+      if (oldOnes.nonEmpty) logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
+      blocksToWrite --= oldOnes.keys
+      blocksToReask ++= oldOnes.values.map(_._2)
   }
 }
 
