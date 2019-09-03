@@ -132,14 +132,7 @@ object Queries extends StrictLogging {
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
 
-    if (outputs.nonEmpty) {
-      outputs.grouped(3000).map { outputs =>
-        (fr"INSERT INTO public.outputs (id, boxType, txId, monetaryValue, nonce, coinId, contractHash, data, isActive, minerAddress) VALUES " ++
-          outputs.init.map(o => fr"(${o.id}, ${o.boxType}, ${o.txId}, ${o.monetaryValue}, ${o.nonce}, ${o.coinId}, ${o.contractHash}, ${o.data}, ${o.isActive}, ${o.minerAddress}), ").fold(Fragment.empty)(_ ++ _) ++
-          outputs.lastOption.map(o => fr"(${o.id}, ${o.boxType}, ${o.txId}, ${o.monetaryValue}, ${o.nonce}, ${o.coinId}, ${o.contractHash}, ${o.data}, ${o.isActive}, ${o.minerAddress})").get ++
-          fr" ON CONFLICT DO NOTHING;").update.run
-      }.reduceLeft(_ *> _)
-    } else Free.pure(0)
+    Update[DBOutput](query).updateMany(outputs)
   }
 
   private def removeOutputsQuery(outputs: List[DBOutput]): ConnectionIO[Int] = {
