@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 import scala.concurrent.duration._
 import akka.actor.{Actor, ActorRef}
-import cats.kernel.Monoid
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
@@ -70,8 +69,10 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
-    case BecomeAwaitDB => context.become(awaitDb)
-    
+    case BecomeAwaitDB if blocksToWrite.nonEmpty =>
+      logger.info("Switching to awaitDb")
+      context.become(awaitDb)
+
     case GetCurrentHeight(height, blockId) =>
       logger.info(s"last height is $height (working cycle)")
       blocksToWrite -= blockId
@@ -234,9 +235,8 @@ class NodeParser(node: InetSocketAddress,
             }
         }}
     }
-    if (blocksToWrite.isEmpty) isRecovering.set(true)
+    if (blocksToWrite.isEmpty) isRecovering.set(false)
     if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
-      logger.info("Switching to awaitDb")
       self ! BecomeAwaitDB
     }
   }
