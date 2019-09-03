@@ -70,6 +70,8 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
+    case BecomeAwaitDB => context.become(awaitDb)
+    
     case GetCurrentHeight(height, blockId) =>
       logger.info(s"last height is $height (working cycle)")
       blocksToWrite -= blockId
@@ -235,7 +237,7 @@ class NodeParser(node: InetSocketAddress,
     if (blocksToWrite.isEmpty) isRecovering.set(true)
     if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
       logger.info("Switching to awaitDb")
-      context.become(awaitDb)
+      self ! BecomeAwaitDB
     }
   }
 
@@ -286,4 +288,6 @@ object NodeParser {
   case class ResolveFork(fromBlock: String, toDel: List[Block])
 
   case object Recover
+
+  case object BecomeAwaitDB
 }
