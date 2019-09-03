@@ -70,7 +70,9 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
-    case GetCurrentHeight(_, blockId) => blocksToWrite -= blockId
+    case GetCurrentHeight(height, blockId) =>
+      logger.info(s"last height is $height (working cycle)")
+      blocksToWrite -= blockId
 
     case PingNode if !settings.infinitePing && maxNumberOfRejects.exists(_ >= numberOfRejectedRequests) =>
       logger.info(s"No response from: $node. Stop self")
