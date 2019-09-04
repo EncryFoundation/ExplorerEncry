@@ -67,7 +67,7 @@ class SimpleNodeParser(node: InetSocketAddress,
         case Right(infoRoute)  =>
           if (infoRoute != currentNodeInfo){
 //          logger.info(s"Got new information form Api on SNP for: $node. Sending update to DB...")
-          //dbActor ! UpdatedInfoAboutNode(node, infoRoute, status = true)
+          dbActor ! UpdatedInfoAboutNode(node, infoRoute, status = true)
           currentNodeInfo = infoRoute
           }
 //        case Right(_) => logger.info(s"Got outdated information from Api on SNP for: $node.")

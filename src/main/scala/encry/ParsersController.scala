@@ -6,7 +6,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import encry.parser.{NodeParser, SimpleNodeParser}
 import encry.settings.{BlackListSettings, ParseSettings}
-import akka.actor.SupervisorStrategy.{Restart, Resume, Stop}
+import akka.actor.SupervisorStrategy.Stop
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.parser.NodeParser.PeersFromApi
@@ -46,7 +46,7 @@ class ParsersController(settings: ParseSettings,
       newPeers.foreach { peer =>
         val newAddress: InetSocketAddress = new InetSocketAddress(peer, 9051)
         logger.info(s"Creating SimpleNode parser for: $newAddress...")
-        //context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings), name = s"SNP${peer.getHostName}")
+        context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings).withDispatcher("blocking-dispatcher"), name = s"SNP${peer.getHostName}")
       }
       val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
       context.become(mainBehaviour(resultedPeers))
