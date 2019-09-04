@@ -42,6 +42,9 @@ object Queries extends StrictLogging {
     _ <- deleteHeaderQuery(HeaderDBVersion(block))
   } yield ()
 
+  def existingContracts: ConnectionIO[Set[String]] =
+    sql"SELECT hash FROM contracts".query[String].to[Set]
+
   def nodeInfoQuery(addr: InetSocketAddress): ConnectionIO[Option[Header]] = {
     sql"""SELECT * FROM public.headers ORDER BY height DESC LIMIT 1;""".query[Header].option
   }

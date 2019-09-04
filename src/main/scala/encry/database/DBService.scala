@@ -17,6 +17,8 @@ import encry.blockchain.modifiers.{Block, Header}
 
 case class DBService(pgTransactor: HikariTransactor[IO]) extends StrictLogging {
 
+  def existingContractHashes: Future[Set[String]] = runAsync(existingContracts, "existingContracts")
+
   def getNodeInfo(addr: InetSocketAddress): Future[Option[Header]] = {
     runAsync(nodeInfoQuery(addr), "nodeInfo")
   }

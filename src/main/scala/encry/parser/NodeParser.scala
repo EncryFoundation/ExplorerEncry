@@ -3,7 +3,6 @@ package encry.parser
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import scala.concurrent.duration._
 import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
@@ -14,6 +13,7 @@ import encry.settings.ParseSettings
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class NodeParser(node: InetSocketAddress,
@@ -69,9 +69,14 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def workingCycle: Receive = {
-    case BecomeAwaitDB if blocksToWrite.nonEmpty =>
-      logger.info("Switching to awaitDb")
-      context.become(awaitDb)
+    case BecomeAwaitDB =>
+      if (blocksToWrite.nonEmpty) {
+        logger.info("Switching to awaitDb")
+        context.become(awaitDb)
+      } else {
+        isRecovering.set(false)
+        dbActor ! RecoveryMode(false)
+      }
 
     case GetCurrentHeight(height, blockId) =>
       logger.info(s"last height is $height (working cycle)")
@@ -114,7 +119,7 @@ class NodeParser(node: InetSocketAddress,
 
       calculateCommonPoint(15)
 
-    case PingNode =>
+    case PingNode if blocksToReask.nonEmpty =>
       logger.info(s"Going to reask blocks while recovering (${blocksToReask.size} blocks to reask)")
       reaskBlocks()
 
@@ -158,7 +163,7 @@ class NodeParser(node: InetSocketAddress,
               if (toDelIds.nonEmpty) logger.info(s"common point = $commonPoint / toDel = $toDelIds")
               val toDel: List[Block] = toDelIds.map(parserRequests.getBlock).collect{ case Right(blockToDrop) => blockToDrop }
               if (toDel.nonEmpty && toDelIds.length == toDel.length) self ! ResolveFork(commonPoint, toDel)
-            case None if depth + 15 <= currentNodeInfo.fullHeight => calculateCommonPoint(depth + 100)
+            case None if depth + 15 <= currentNodeInfo.fullHeight => calculateCommonPoint(depth + 15)
             case None =>
           }
         }
@@ -235,7 +240,10 @@ class NodeParser(node: InetSocketAddress,
             }
         }}
     }
-    if (blocksToWrite.isEmpty) isRecovering.set(false)
+    if (blocksToWrite.isEmpty) {
+      isRecovering.set(false)
+      dbActor ! RecoveryMode(false)
+    }
     if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
       self ! BecomeAwaitDB
     }
@@ -247,7 +255,7 @@ class NodeParser(node: InetSocketAddress,
       blocksToWrite -= blockId
       logger.info(s"blocksToWrite size is ${blocksToWrite.size}")
       val currentMonotonic = System.nanoTime()
-      val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 60000000000L)
+      val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 1.minute.toNanos)
       if (oldOnes.nonEmpty) logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
       blocksToWrite --= oldOnes.keys
       blocksToReask ++= oldOnes.values.map(_._2)
@@ -262,7 +270,7 @@ class NodeParser(node: InetSocketAddress,
       }
     case PingNode =>
       val currentMonotonic = System.nanoTime()
-      val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 60000000000L)
+      val oldOnes = blocksToWrite.filter(currentMonotonic - _._2._1 >= 1.minute.toNanos)
       if (oldOnes.nonEmpty) logger.info(s"Blocks ${oldOnes.keys.mkString(", ")} was not written to db in 1 minute")
       blocksToWrite --= oldOnes.keys
       blocksToReask ++= oldOnes.values.map(_._2)
