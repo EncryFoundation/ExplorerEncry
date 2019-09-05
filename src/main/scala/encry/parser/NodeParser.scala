@@ -76,7 +76,7 @@ class NodeParser(node: InetSocketAddress,
       } else {
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
-        context.parent ! RecoveryMode(false)
+        if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.parent ! RecoveryMode(false)
       }
 
     case GetCurrentHeight(height, blockId) =>
@@ -246,7 +246,7 @@ class NodeParser(node: InetSocketAddress,
     if (blocksToWrite.isEmpty) {
       isRecovering.set(false)
       dbActor ! RecoveryMode(false)
-      context.parent ! RecoveryMode(false)
+      if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.parent ! RecoveryMode(false)
     }
     if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
       self ! BecomeAwaitDB
@@ -267,7 +267,7 @@ class NodeParser(node: InetSocketAddress,
         logger.info("Setting recovery to false")
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
-        context.parent ! RecoveryMode(false)
+        if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.parent ! RecoveryMode(false)
         context.become(workingCycle)
         if (height != currentNodeInfo.fullHeight) {
           self ! Recover
