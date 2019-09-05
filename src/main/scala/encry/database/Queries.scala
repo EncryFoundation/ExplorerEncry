@@ -25,6 +25,7 @@ object Queries extends StrictLogging {
     _ <- insertNodeToHeader(block.header, node)
     _ <- insertTransactionsQuery(block)
     _ <- insertInputsQuery(block.getDBInputs)
+    _ <- insertContractsQuery(block.getDBInputs)
     _ <- markOutputsAsNonActive(block.getDBInputs)
     _ <- insertTokens(block.getDbOutputs)
     _ <- insertAccounts(block.getDbOutputs)
@@ -100,11 +101,16 @@ object Queries extends StrictLogging {
     if (inputs.nonEmpty) {
       inputs.grouped(7500).map { inputs =>
         (fr"INSERT INTO public.inputs (bxId, txId, contract, proofs) VALUES " ++
-          inputs.init.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contract}, ${i.proofs}), ").fold(Fragment.empty)(_ ++ _) ++
-          inputs.lastOption.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contract}, ${i.proofs})").get ++
+          inputs.init.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contractHash}, ${i.proofs}), ").fold(Fragment.empty)(_ ++ _) ++
+          inputs.lastOption.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contractHash}, ${i.proofs})").get ++
           fr" ON CONFLICT DO NOTHING;").update.run
       }.reduceLeft(_ *> _)
     } else Free.pure(0)
+  }
+
+  def insertContractsQuery(ins: List[DBInput]): ConnectionIO[Int] = {
+    val query = "INSERT INTO contracts(hash, contract) VALUES (?, ?) ON CONFLICT DO NOTHING;"
+    Update[(String, String)](query).updateMany(ins.map(i => (i.contractHash, i.contract)))
   }
 
   private def removeInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
