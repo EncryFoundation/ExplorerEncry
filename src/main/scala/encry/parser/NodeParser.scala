@@ -76,6 +76,7 @@ class NodeParser(node: InetSocketAddress,
       } else {
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
+        context.parent ! RecoveryMode(false)
       }
 
     case GetCurrentHeight(height, blockId) =>
@@ -204,6 +205,7 @@ class NodeParser(node: InetSocketAddress,
     logger.info("2 Setting recovery to true")
     isRecovering.set(true)
     dbActor ! RecoveryMode(true)
+    context.parent ! RecoveryMode(true)
     val realEnd = math.min(start + settings.recoverBatchSize, end)
     logger.info(s"Requesting ids of blocks to delete starting from height $start to $realEnd")
     dbActor ! RequestBlocksIds(start, realEnd)
@@ -213,6 +215,7 @@ class NodeParser(node: InetSocketAddress,
     logger.info("1 Setting recovery to true")
     isRecovering.set(true)
     dbActor ! RecoveryMode(true)
+    context.parent ! RecoveryMode(true)
     val realEnd = math.min(start + settings.recoverBatchSize, end)
     logger.info(s"Recovering from $start to $realEnd")
     (start to realEnd).foreach { height =>
@@ -243,6 +246,7 @@ class NodeParser(node: InetSocketAddress,
     if (blocksToWrite.isEmpty) {
       isRecovering.set(false)
       dbActor ! RecoveryMode(false)
+      context.parent ! RecoveryMode(false)
     }
     if (currentBestBlockHeight.get() == realEnd && blocksToWrite.nonEmpty) {
       self ! BecomeAwaitDB
@@ -263,6 +267,7 @@ class NodeParser(node: InetSocketAddress,
         logger.info("Setting recovery to false")
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
+        context.parent ! RecoveryMode(false)
         context.become(workingCycle)
         if (height != currentNodeInfo.fullHeight) {
           self ! Recover

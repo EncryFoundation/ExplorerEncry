@@ -9,6 +9,7 @@ import encry.settings.{BlackListSettings, ParseSettings}
 import akka.actor.SupervisorStrategy.Stop
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.{BadPeer, RemoveBadPeer}
+import encry.database.DBActor.RecoveryMode
 import encry.parser.NodeParser.PeersFromApi
 
 import scala.concurrent.duration._
@@ -20,6 +21,7 @@ class ParsersController(settings: ParseSettings,
   var peerReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
 
   var blackList: Seq[(InetAddress, Long)] = Seq.empty
+  var recoveryMode = false
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
     //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)
@@ -41,7 +43,8 @@ class ParsersController(settings: ParseSettings,
   override def receive: Receive = mainBehaviour(Set.empty[InetAddress])
 
   def mainBehaviour(knownPeers: Set[InetAddress]): Receive = {
-    case PeersFromApi(peers) =>
+    case RecoveryMode(status) => recoveryMode = status
+    case PeersFromApi(peers) if !recoveryMode=>
       val newPeers: Set[InetAddress] = peers.diff(knownPeers) -- blackList.map(_._1)
       newPeers.foreach { peer =>
         val newAddress: InetSocketAddress = new InetSocketAddress(peer, 9051)
