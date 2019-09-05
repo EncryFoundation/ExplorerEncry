@@ -44,6 +44,7 @@ class ParsersController(settings: ParseSettings,
 
   def mainBehaviour(knownPeers: Set[InetAddress]): Receive = {
     case RecoveryMode(status) => recoveryMode = status
+
     case PeersFromApi(peers) if !recoveryMode=>
       val newPeers: Set[InetAddress] = peers.diff(knownPeers) -- blackList.map(_._1)
       newPeers.foreach { peer =>
@@ -53,6 +54,8 @@ class ParsersController(settings: ParseSettings,
       }
       val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
       context.become(mainBehaviour(resultedPeers))
+
+    case PeersFromApi(_) if recoveryMode =>
 
     case BadPeer(peer) =>
       val currentNumberOfReconnects: Int = peerReconnects.getOrElse(peer, 0)
