@@ -109,8 +109,9 @@ object Queries extends StrictLogging {
   }
 
   def insertContractsQuery(ins: List[DBInput]): ConnectionIO[Int] = {
+    val uniqueContracts = ins.map(i => (i.contractHash, i.contract)).toSet
     val query = "INSERT INTO contracts(hash, contract) VALUES (?, ?) ON CONFLICT DO NOTHING;"
-    Update[(String, String)](query).updateMany(ins.map(i => (i.contractHash, i.contract)))
+    Update[(String, String)](query).updateMany(uniqueContracts.toList)
   }
 
   private def removeInputsQuery(inputs: List[DBInput]): ConnectionIO[Int] = {
