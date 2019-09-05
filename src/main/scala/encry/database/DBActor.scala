@@ -62,6 +62,6 @@ object DBActor {
 
   case class RequestedIdsToDelete(from: Int, to: Int, ids: List[String])
 
-  case class RecoveryMode(state: Boolean)
+  final case class RecoveryMode(state: Boolean) extends AnyVal
 
 }

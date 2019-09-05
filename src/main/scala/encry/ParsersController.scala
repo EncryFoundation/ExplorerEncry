@@ -21,7 +21,7 @@ class ParsersController(settings: ParseSettings,
   var peerReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
 
   var blackList: Seq[(InetAddress, Long)] = Seq.empty
-  var recoveryMode = false
+  var recoveryMode = true
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
     //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)

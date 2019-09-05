@@ -104,7 +104,7 @@ class NodeParser(node: InetSocketAddress,
         case Right(_) => logger.info(s"Info route on node $node don't change")
       }
 
-      parserRequests.getPeers match {
+      if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) parserRequests.getPeers match {
         case Left(th) =>
           if (!settings.infinitePing) numberOfRejectedRequests += 1
           logger.warn(s"Error during getting Peers request to $node", th.getMessage)
@@ -202,7 +202,6 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def requestBlockIdsFromDb(start: Int, end: Int): Unit = {
-    logger.info("2 Setting recovery to true")
     isRecovering.set(true)
     dbActor ! RecoveryMode(true)
     context.parent ! RecoveryMode(true)
@@ -212,7 +211,6 @@ class NodeParser(node: InetSocketAddress,
   }
 
   def recoverNodeChain(start: Int, end: Int): Unit = Future {
-    logger.info("1 Setting recovery to true")
     isRecovering.set(true)
     dbActor ! RecoveryMode(true)
     context.parent ! RecoveryMode(true)
@@ -264,7 +262,6 @@ class NodeParser(node: InetSocketAddress,
       blocksToWrite --= oldOnes.keys
       blocksToReask ++= oldOnes.values.map(_._2)
       if (blocksToWrite.isEmpty) {
-        logger.info("Setting recovery to false")
         isRecovering.set(false)
         dbActor ! RecoveryMode(false)
         if (currentBestBlockHeight.get() == currentNodeInfo.fullHeight) context.parent ! RecoveryMode(false)

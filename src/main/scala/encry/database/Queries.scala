@@ -76,10 +76,10 @@ object Queries extends StrictLogging {
   private def insertTransactionsQuery(block: Block): ConnectionIO[Int] = {
     val txs: List[DBTransaction] = block.payload.txs.map(tx => DBTransaction(tx, block.header.id))
 
-    txs.grouped(5000).map { txs =>
+    txs.grouped(5000).map { txs => // 5000 due to pgDJBC limitations @see org.postgresql.core.PGStream:251
       (fr"INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId) VALUES " ++
-        txs.init.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId}), ").fold(Fragment.empty)(_ ++ _) ++
-        txs.lastOption.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId})").get ++
+        txs.dropRight(1).map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId}), ").fold(Fragment.empty)(_ ++ _) ++
+        txs.lastOption.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId})").get ++ // we always have at least 1 transaction in block
         fr" ON CONFLICT DO NOTHING;").update.run
     }.reduceLeft(_ *> _)
   }
@@ -96,9 +96,9 @@ object Queries extends StrictLogging {
         |VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     if (inputs.nonEmpty) {
-      inputs.grouped(7500).map { inputs =>
+      inputs.grouped(7500).map { inputs =>  // 7500 due to pgDJBC limitations @see org.postgresql.core.PGStream:251
         (fr"INSERT INTO public.inputs (bxId, txId, contract, proofs) VALUES " ++
-          inputs.init.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contractHash}, ${i.proofs}), ").fold(Fragment.empty)(_ ++ _) ++
+          inputs.dropRight(1).map(i => fr"(${i.bxId}, ${i.txId}, ${i.contractHash}, ${i.proofs}), ").fold(Fragment.empty)(_ ++ _) ++
           inputs.lastOption.map(i => fr"(${i.bxId}, ${i.txId}, ${i.contractHash}, ${i.proofs})").get ++
           fr" ON CONFLICT DO NOTHING;").update.run
       }.reduceLeft(_ *> _)
@@ -198,9 +198,9 @@ object Queries extends StrictLogging {
         |VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
         |""".stripMargin
     if (directives.nonEmpty) {
-      directives.grouped(3300).map { directives =>
+      directives.grouped(3300).map { directives =>  // 3000 due to pgDJBC limitations @see org.postgresql.core.PGStream:251
         (fr"INSERT INTO public.directives (tx_id, number_in_tx, type_id, is_valid, contract_hash, amount, address, token_id_opt, data_field) VALUES " ++
-          directives.init.map(d => fr"(${d.txId}, ${d.numberInTx}, ${d.dTypeId}, ${d.isValid}, ${d.contractHash}, ${d.amount}, ${d.address}, ${d.tokenIdOpt}, ${d.data}), ").fold(Fragment.empty)(_ ++ _) ++
+          directives.dropRight(1).map(d => fr"(${d.txId}, ${d.numberInTx}, ${d.dTypeId}, ${d.isValid}, ${d.contractHash}, ${d.amount}, ${d.address}, ${d.tokenIdOpt}, ${d.data}), ").fold(Fragment.empty)(_ ++ _) ++
           directives.lastOption.map(d => fr"(${d.txId}, ${d.numberInTx}, ${d.dTypeId}, ${d.isValid}, ${d.contractHash}, ${d.amount}, ${d.address}, ${d.tokenIdOpt}, ${d.data})").get ++
           fr" ON CONFLICT DO NOTHING;").update.run
       }.reduceLeft(_ *> _)
