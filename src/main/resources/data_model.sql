@@ -116,7 +116,7 @@ PRIMARY KEY (hash, tokenId));
 CREATE INDEX tokenId_wallet_index ON wallet (tokenId);
 CREATE INDEX hash_wallet_index ON wallet (hash);
 
-CREATE FUNCTION emp_stamp() RETURNS trigger AS $emp_stamp$
+CREATE FUNCTION recount_wallet() RETURNS trigger AS $recount_wallet$
 
 BEGIN
 IF (TG_OP = 'INSERT') THEN
@@ -130,7 +130,7 @@ ELSEIF (TG_OP = 'DELETE') THEN
         RETURN OLD;
 		END IF;
     END;
-$emp_stamp$ LANGUAGE plpgsql;
+$recount_wallet$ LANGUAGE plpgsql;
 
-CREATE TRIGGER emp_stamp AFTER INSERT OR DELETE ON outputs
-    FOR EACH ROW EXECUTE PROCEDURE emp_stamp();
+CREATE TRIGGER recount_wallet AFTER INSERT OR DELETE ON outputs
+    FOR EACH ROW EXECUTE PROCEDURE recount_wallet();
