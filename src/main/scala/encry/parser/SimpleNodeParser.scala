@@ -1,7 +1,7 @@
 package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
-import akka.actor.{Actor, ActorRef, Kill, OneForOneStrategy, PoisonPill, Props, SupervisorStrategy}
+import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.BadPeer
 import encry.blockchain.nodeRoutes.InfoRoute
@@ -23,7 +23,7 @@ class SimpleNodeParser(node: InetSocketAddress,
 
   override def preStart(): Unit = {
     logger.info(s"Starting SNP for $node")
-    context.system.scheduler.schedule(10.seconds, 10.seconds) (self ! PingNode)
+    context.system.scheduler.schedule(10.seconds, 60.seconds) (self ! PingNode)
   }
 
   override def postStop(): Unit = {

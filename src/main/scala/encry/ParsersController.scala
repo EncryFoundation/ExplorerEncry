@@ -1,13 +1,15 @@
 package encry
 
 import java.net.{InetAddress, InetSocketAddress}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import encry.parser.{NodeParser, SimpleNodeParser}
 import encry.settings.{BlackListSettings, ParseSettings}
-import akka.actor.SupervisorStrategy.{Restart, Resume, Stop}
+import akka.actor.SupervisorStrategy.Stop
 import com.typesafe.scalalogging.StrictLogging
 import encry.ParsersController.{BadPeer, RemoveBadPeer}
+import encry.database.DBActor.RecoveryMode
 import encry.parser.NodeParser.PeersFromApi
 
 import scala.concurrent.duration._
@@ -19,6 +21,7 @@ class ParsersController(settings: ParseSettings,
   var peerReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
 
   var blackList: Seq[(InetAddress, Long)] = Seq.empty
+  var recoveryMode = true
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy(5, 10.seconds) {
     //todo can stop actor and remove peer from listening collection (can use ref as an indicator about peer address)
@@ -40,15 +43,19 @@ class ParsersController(settings: ParseSettings,
   override def receive: Receive = mainBehaviour(Set.empty[InetAddress])
 
   def mainBehaviour(knownPeers: Set[InetAddress]): Receive = {
-    case PeersFromApi(peers) =>
+    case RecoveryMode(status) => recoveryMode = status
+
+    case PeersFromApi(peers) if !recoveryMode=>
       val newPeers: Set[InetAddress] = peers.diff(knownPeers) -- blackList.map(_._1)
       newPeers.foreach { peer =>
         val newAddress: InetSocketAddress = new InetSocketAddress(peer, 9051)
         logger.info(s"Creating SimpleNode parser for: $newAddress...")
-        context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings), name = s"SNP${peer.getHostName}")
+        context.actorOf(SimpleNodeParser.props(newAddress, self, dbActor, settings).withDispatcher("blocking-dispatcher"), name = s"SNP${peer.getHostName}")
       }
       val resultedPeers: Set[InetAddress] = knownPeers ++ newPeers
       context.become(mainBehaviour(resultedPeers))
+
+    case PeersFromApi(_) if recoveryMode =>
 
     case BadPeer(peer) =>
       val currentNumberOfReconnects: Int = peerReconnects.getOrElse(peer, 0)

@@ -7,25 +7,26 @@ import akka.actor.Actor
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.Block
 import encry.blockchain.nodeRoutes.InfoRoute
-import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
+import encry.database.DBActor.{ActivateNodeAndGetNodeInfo, DropBlocksFromNode, RecoveryMode, RequestBlocksIds, RequestedIdsToDelete, UpdatedInfoAboutNode}
 import encry.parser.NodeParser.{BlockFromNode, GetCurrentHeight, SetNodeParams}
-import encry.settings.DatabaseSettings
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
-class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
+class DBActor(dbService: DBService) extends Actor with StrictLogging {
 
-  val dbService = DBService(settings)
   implicit val ec: ExecutionContextExecutor = context.dispatcher
+  var recovery = false
 
   override def receive: Receive = {
+    case RecoveryMode(state) => recovery = state
+
     case ActivateNodeAndGetNodeInfo(addr: InetSocketAddress, infoRoute: InfoRoute) =>
       dbService
         .activateOrGetNodeInfo(addr, infoRoute)
         .map(nodeInfo => SetNodeParams(nodeInfo.id, nodeInfo.height))
         .pipeTo(sender())
 
-    case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) =>
+    case UpdatedInfoAboutNode(addr: InetSocketAddress, infoRoute: InfoRoute, status: Boolean) if !recovery =>
       dbService.activateNode(addr, infoRoute, status)
 
     case BlockFromNode(block, nodeAddr, nodeInfo) =>
@@ -33,7 +34,7 @@ class DBActor(settings: DatabaseSettings) extends Actor with StrictLogging {
         s"from node ${nodeAddr.getAddress.getHostAddress}")
       dbService
         .insertBlockFromNode(block, nodeAddr, nodeInfo)
-        .map(_ => GetCurrentHeight(block.header.height))
+        .map(_ => GetCurrentHeight(block.header.height, block.header.id))
         .pipeTo(sender())
 
     case DropBlocksFromNode(addr: InetSocketAddress, blocks: List[Block]) =>
@@ -60,5 +61,7 @@ object DBActor {
   case class RequestBlocksIds(from: Int, to: Int)
 
   case class RequestedIdsToDelete(from: Int, to: Int, ids: List[String])
+
+  final case class RecoveryMode(state: Boolean) extends AnyVal
 
 }
