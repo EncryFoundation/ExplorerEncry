@@ -19,6 +19,7 @@ CREATE TABLE headers(
   height INTEGER NOT NULL,
   nonce BIGINT NOT NULL,
   difficulty BIGINT NOT NULL,
+  stateRoot VARCHAR(64) NOT NULL,
   equihashSolution INTEGER ARRAY NOT NULL,
   txCount INTEGER NOT NULL,
   minerAddress VARCHAR NOT NULL,
@@ -58,7 +59,7 @@ CREATE INDEX tx_id_inputs_index ON inputs (txId);
 CREATE TABLE contracts(
    hash VARCHAR(64) PRIMARY KEY,
    contract TEXT
-)
+);
 
 CREATE TABLE accounts(
 -- idx SERIAL,

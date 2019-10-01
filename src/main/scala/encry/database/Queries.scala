@@ -62,8 +62,8 @@ object Queries extends StrictLogging {
     val query: String =
       s"""
          |INSERT INTO public.headers (id, version, parent_id, transactionsRoot, timestamp, height, nonce,
-         |       difficulty, equihashSolution, txCount, minerAddress, minerReward)
-         |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
+         |       difficulty, stateRoot, equihashSolution, txCount, minerAddress, minerReward)
+         |VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING;
       """.stripMargin
     Update[HeaderDBVersion](query).run(block)
   }

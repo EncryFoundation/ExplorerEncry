@@ -10,11 +10,12 @@ case class Header(id: String,
                   height: Int,
                   nonce: Long,
                   difficulty: Long,
+                  stateRoot: String,
                   equihashSolution: List[Int])
 
 object Header {
 
-  val empty: Header = Header("", -1: Byte, "", "", 0L, 0, 0L, 0L, List.empty)
+  val empty: Header = Header("", -1: Byte, "", "", 0L, 0, 0L, 0L, "",List.empty)
 
   implicit val jsonDecoder: Decoder[Header] = (c: HCursor) =>
     for {
@@ -26,6 +27,7 @@ object Header {
       height           <- c.downField("height").as[Int]
       nonce            <- c.downField("nonce").as[Long]
       difficulty       <- c.downField("difficulty").as[Long]
+      stateRoot        <- c.downField("stateRoot").as[String]
       equihashSolution <- c.downField("equihashSolution").as[List[Int]]
     } yield Header(
       id,
@@ -36,7 +38,8 @@ object Header {
       height,
       nonce,
       difficulty,
-      equihashSolution,
+      stateRoot,
+      equihashSolution
     )
 }
 
@@ -48,6 +51,7 @@ case class HeaderDBVersion(id: String,
                            height: Int,
                            nonce: Long,
                            difficulty: Long,
+                           stateRoot: String,
                            equihashSolution: List[Int],
                            txCount: Int,
                            minerAddress: String,
@@ -66,6 +70,7 @@ object HeaderDBVersion {
       block.header.height,
       block.header.nonce,
       block.header.difficulty,
+      block.header.stateRoot,
       block.header.equihashSolution,
       block.payload.txs.size,
       minerAddress,
