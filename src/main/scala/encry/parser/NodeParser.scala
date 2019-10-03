@@ -151,7 +151,7 @@ class NodeParser(node: InetSocketAddress,
   def calculateCommonPoint(depth: Int): Unit = parserRequests.getLastIds(depth, currentNodeInfo.fullHeight) match {
     case Left(th) =>
       if (!settings.infinitePing) numberOfRejectedRequests += 1
-      logger.warn(s"Error during getting last ids to $node", th.getCause)
+      logger.warn(s"Error during getting last ids to $node, due to ${th.getMessage}")
     case Right(newLastHeaders) =>
       if (isRecovering.get() || currentBestBlockHeight.get() != currentNodeInfo.fullHeight)
         logger.info("Get last headers, but node is recovering, so ignore them")

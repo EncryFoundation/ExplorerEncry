@@ -38,7 +38,7 @@ case class ParserRequests(node: InetSocketAddress) extends StrictLogging {
     makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history/at/$height")
 
   def getLastIds(qty: Int, maxHeight: Int): Either[Throwable, List[String]] =
-    makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history?limit=$qty&offset=${maxHeight - qty + 1}")
+    makeGetRequest[List[String]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/history?limit=$qty&offset=${Math.max(maxHeight - qty + 1, 0)}")
 
   def getPeers: Either[Throwable, List[Peer]] =
     makeGetRequest[List[Peer]](s"http://${node.getAddress.getHostAddress}:${node.getPort}/peers/connected")
