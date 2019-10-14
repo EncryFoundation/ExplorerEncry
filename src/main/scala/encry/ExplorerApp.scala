@@ -12,7 +12,7 @@ import doobie.implicits._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
-object  ExplorerApp extends App {
+object ExplorerApp extends App {
 
   implicit val system: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
