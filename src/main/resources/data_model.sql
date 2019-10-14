@@ -58,7 +58,7 @@ CREATE INDEX tx_id_inputs_index ON inputs (txId);
 CREATE TABLE contracts(
    hash VARCHAR(64) PRIMARY KEY,
    contract TEXT
-)
+);
 
 CREATE TABLE accounts(
 -- idx SERIAL,
