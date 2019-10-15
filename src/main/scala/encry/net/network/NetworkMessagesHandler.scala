@@ -11,6 +11,8 @@ import encry.net.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
 import encry.net.utils.CoreTaggedTypes
 import supertagged.@@
 
+//TODO: replace everywhere encry.net to org.encryfoundation.common
+
 class NetworkMessagesHandler() extends Actor with StrictLogging {
 
   var localGeneratedTransactions: Seq[Transaction] = Seq.empty
