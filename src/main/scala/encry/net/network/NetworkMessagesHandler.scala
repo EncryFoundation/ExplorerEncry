@@ -1,5 +1,6 @@
 package encry.net.network
 
+import TransactionProto.TransactionProtoMessage
 import akka.actor.{Actor, Props}
 import com.typesafe.scalalogging.StrictLogging
 import org.encryfoundation.common.utils.Algos
@@ -19,7 +20,26 @@ class NetworkMessagesHandler() extends Actor with StrictLogging {
       localGeneratedTransactions :+= transaction
       context.parent ! BroadcastInvForTx(transaction)
 
-    case MessageFromNetwork(message, _) => message match {
+    case MessageFromNetwork(message, peerOpt) => message match {
+
+      case InvNetworkMessage(invData) if invData._1 == Transaction.modifierTypeId =>
+        logger.debug(s"Got transactionIds: ${invData._2.map(Algos.encode).mkString(",")}")
+        peerOpt.foreach { peer =>
+          logger.debug(s"Request transactions: ${invData._2.map(Algos.encode).mkString(",")}")
+          peer.handlerRef ! RequestModifiersNetworkMessage((invData._1, invData._2))
+        }
+
+      case ModifiersNetworkMessage((modifierTypeId, modifiers)) =>
+        logger.debug(s"Response modifiers: $modifierTypeId size ${modifiers.size}")
+        val transactions = modifiers.flatMap {case (modifierId, bytes) =>
+          TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes)).toOption
+        }
+        logger.debug(s"Extracted transactions: $transactions")
+
+      case InvNetworkMessage((modifierTypeId, modifierIds)) =>
+        logger.debug(s"Inv message : $modifierTypeId ${modifierIds.map(Algos.encode).mkString(",")}")
+
+
       case RequestModifiersNetworkMessage(invData) if invData._1 == Transaction.modifierTypeId =>
         logger.debug(s"Got request modifiers on NMH")
         val tmpInv: Seq[String] = invData._2.map(Algos.encode)

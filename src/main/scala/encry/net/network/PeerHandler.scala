@@ -144,10 +144,6 @@ class PeerHandler(remoteAddress: InetSocketAddress,
       chunksBuffer = packet._2
       packet._1.find { packet =>
         GeneralizedNetworkMessage.fromProto(packet) match {
-          case Success(message) if message.messageName == "Inv" =>
-            logger.debug("Received message " + message.messageName + " from " + remoteAddress)
-            logger.debug("Inv message :" + message)
-            false
           case Success(message) =>
             receivedMessagesHandler ! MessageFromNetwork(message, Some(cp))
             logger.debug("Received message " + message.messageName + " from " + remoteAddress)

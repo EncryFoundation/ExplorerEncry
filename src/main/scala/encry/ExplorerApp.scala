@@ -6,7 +6,6 @@ import cats.effect.{Blocker, ContextShift, IO}
 import cats.implicits._
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
-import encry.database.{DBActor, DBService}
 import encry.net.network.NetworkServer
 import encry.net.utils.NetworkTimeProvider
 import encry.settings.ExplorerSettings
