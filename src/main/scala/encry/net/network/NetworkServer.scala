@@ -7,38 +7,36 @@ import akka.io.Tcp.SO.KeepAlive
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import com.typesafe.scalalogging.StrictLogging
-import org.encryfoundation.generator.actors.Generator
-import org.encryfoundation.generator.actors.Generator.TransactionForCommit
-import org.encryfoundation.generator.network.BasicMessagesRepo.{InvNetworkMessage, Outgoing}
-import org.encryfoundation.generator.network.NetworkMessagesHandler.BroadcastInvForTx
-import org.encryfoundation.generator.network.NetworkServer.{CheckConnection, ConnectionSetupSuccessfully}
-import org.encryfoundation.generator.network.PeerHandler._
-import org.encryfoundation.generator.modifiers.Transaction
-import org.encryfoundation.generator.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
-import org.encryfoundation.generator.utils.Mnemonic.createPrivKey
-import org.encryfoundation.generator.utils.{NetworkTimeProvider, Settings}
+import encry.net.network.BasicMessagesRepo.{InvNetworkMessage, Outgoing}
+import encry.net.network.NetworkMessagesHandler.{BroadcastInvForTx, TransactionForCommit}
+import encry.net.network.NetworkServer.{CheckConnection, ConnectionSetupSuccessfully}
+import encry.net.network.PeerHandler._
+import encry.net.modifiers.Transaction
+import encry.net.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
+import encry.net.utils.Mnemonic.createPrivKey
+import encry.net.utils.NetworkTimeProvider
+import encry.settings.NetworkSettings
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContextExecutor
 
-class NetworkServer(settings: Settings,
-                    timeProvider: NetworkTimeProvider,
-                    influx: Option[ActorRef]) extends Actor with StrictLogging {
+class NetworkServer(settings: NetworkSettings,
+                    timeProvider: NetworkTimeProvider) extends Actor with StrictLogging {
 
   implicit val system: ActorSystem = context.system
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   var isConnected = false
 
-  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props(settings))
+  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props())
 
   var tmpConnectionHandler: Option[ActorRef] = None
 
   val selfPeer: InetSocketAddress =
-    new InetSocketAddress(settings.network.bindAddressHost, settings.network.bindAddressPort)
+    new InetSocketAddress(settings.bindAddressHost, settings.bindAddressPort)
 
   val connectingPeer: InetSocketAddress =
-    new InetSocketAddress(settings.network.peerForConnectionHost, settings.network.peerForConnectionPort)
+    new InetSocketAddress(settings.peerForConnectionHost, settings.peerForConnectionPort)
 
   IO(Tcp) ! Bind(self, selfPeer)
 
@@ -87,11 +85,7 @@ class NetworkServer(settings: Settings,
       logger.debug(s"Send inv message to remote.")
 
     case ConnectionSetupSuccessfully =>
-      settings.peers.foreach { peer =>
-        logger.info(s"Created generator actor for ${peer.explorerHost}:${peer.explorerPort}.")
-        system.actorOf(
-          Generator.props(settings, createPrivKey(Some(peer.mnemonicKey)), peer, influx, self), peer.explorerHost)
-      }
+      //logger.info(s"Created generator actor for ${peer.explorerHost}:${peer.explorerPort}.")
 
     case msg@TransactionForCommit(_) => messagesHandler ! msg
 
@@ -100,11 +94,9 @@ class NetworkServer(settings: Settings,
 }
 
 object NetworkServer {
-
   case object CheckConnection
-
   case object ConnectionSetupSuccessfully
 
-  def props(settings: Settings, timeProvider: NetworkTimeProvider, influx: Option[ActorRef]): Props =
-    Props(new NetworkServer(settings, timeProvider, influx))
+  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider): Props =
+    Props(new NetworkServer(settings, timeProvider))
 }

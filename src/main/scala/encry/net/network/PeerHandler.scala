@@ -2,16 +2,19 @@ package encry.net.network
 
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
+
 import akka.actor.{Actor, ActorRef, Cancellable, Props}
 import akka.io.Tcp
 import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.google.common.primitives.Ints
 import com.typesafe.scalalogging.StrictLogging
-import org.encryfoundation.generator.network.PeerHandler._
-import org.encryfoundation.generator.network.BasicMessagesRepo._
-import org.encryfoundation.generator.network.NetworkServer.ConnectionSetupSuccessfully
-import org.encryfoundation.generator.utils.{NetworkTimeProvider, Settings}
+import encry.net.network.PeerHandler._
+import encry.net.network.BasicMessagesRepo._
+import encry.net.network.NetworkServer.ConnectionSetupSuccessfully
+import encry.net.utils.NetworkTimeProvider
+import encry.settings.NetworkSettings
+
 import scala.annotation.tailrec
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContextExecutor
@@ -19,7 +22,7 @@ import scala.util.{Failure, Success}
 
 class PeerHandler(remoteAddress: InetSocketAddress,
                   listener: ActorRef,
-                  settings: Settings,
+                  settings: NetworkSettings,
                   timeProvider: NetworkTimeProvider,
                   direction: ConnectionType,
                   receivedMessagesHandler: ActorRef) extends Actor with StrictLogging {
@@ -47,9 +50,9 @@ class PeerHandler(remoteAddress: InetSocketAddress,
 
     case StartIteration => timeProvider.time() map { time =>
       val handshake: Handshake = Handshake(
-        protocolToBytes(settings.network.appVersion),
-        settings.network.nodeName,
-        Some(new InetSocketAddress(settings.network.declaredAddressHost, settings.network.declaredAddressPort)),
+        protocolToBytes(settings.appVersion),
+        settings.nodeName,
+        Some(new InetSocketAddress(settings.declaredAddressHost, settings.declaredAddressPort)),
         time
       )
       listener ! Write(ByteString(GeneralizedNetworkMessage.toProto(handshake).toByteArray))
@@ -61,7 +64,7 @@ class PeerHandler(remoteAddress: InetSocketAddress,
         context.parent ! ConnectionSetupSuccessfully
         context.become(workingCycleWriting(ConnectedPeer(remoteAddress, self, Outgoing, receivedHandshake.get)))
       } else context.become(awaitingConnectionBehaviour(
-        Some(context.system.scheduler.scheduleOnce(settings.network.handshakeTimeout, self, HandshakeTimeout)))
+        Some(context.system.scheduler.scheduleOnce(settings.handshakeTimeout, self, HandshakeTimeout)))
       )
     }
 
@@ -141,6 +144,10 @@ class PeerHandler(remoteAddress: InetSocketAddress,
       chunksBuffer = packet._2
       packet._1.find { packet =>
         GeneralizedNetworkMessage.fromProto(packet) match {
+          case Success(message) if message.messageName == "Inv" =>
+            logger.debug("Received message " + message.messageName + " from " + remoteAddress)
+            logger.debug("Inv message :" + message)
+            false
           case Success(message) =>
             receivedMessagesHandler ! MessageFromNetwork(message, Some(cp))
             logger.debug("Received message " + message.messageName + " from " + remoteAddress)
@@ -224,7 +231,7 @@ object PeerHandler {
 
   def props(remoteAddress: InetSocketAddress,
             listener: ActorRef,
-            settings: Settings,
+            settings: NetworkSettings,
             timeProvider: NetworkTimeProvider,
             direction: ConnectionType,
             messagesHandler: ActorRef): Props =

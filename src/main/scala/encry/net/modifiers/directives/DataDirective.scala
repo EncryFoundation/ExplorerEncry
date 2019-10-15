@@ -11,8 +11,8 @@ import org.encryfoundation.common.serialization.Serializer
 import org.encryfoundation.common.utils.{Algos, Utils}
 import org.encryfoundation.common.utils.constants.TestNetConstants
 import scorex.crypto.hash.Digest32
-import org.encryfoundation.generator.modifiers.box.{DataBox, EncryProposition}
-import org.encryfoundation.generator.modifiers.directives.Directive.DTypeId
+import encry.net.modifiers.box.{DataBox, EncryProposition}
+import encry.net.modifiers.directives.Directive.DTypeId
 
 import scala.util.Try
 

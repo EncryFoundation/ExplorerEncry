@@ -41,6 +41,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.iheart" %% "ficus" % "1.4.2",
+  "commons-net" % "commons-net" % "3.3"
 ) ++ apiDependencies ++ loggingDependencies ++ databaseDependencies
 
 fork := true

@@ -7,9 +7,9 @@ import org.encryfoundation.common.modifiers.mempool.transaction.{Input, Proof, P
 import org.encryfoundation.prismlang.compiler.CompiledContract
 import org.encryfoundation.prismlang.core.wrapped.BoxedValue
 import scorex.crypto.hash.{Blake2b256, Digest32}
-import org.encryfoundation.generator.modifiers.directives._
+import encry.net.modifiers.directives._
 import org.encryfoundation.common.utils.TaggedTypes.ADKey
-import org.encryfoundation.generator.modifiers.box.MonetaryBox
+import encry.net.modifiers.box.MonetaryBox
 
 import scala.util.Random
 

@@ -3,7 +3,7 @@ package encry.net.utils
 import java.net.InetAddress
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.net.ntp.{NTPUDPClient, TimeInfo}
-import org.encryfoundation.generator.utils.NetworkTime.Time
+import encry.net.utils.NetworkTime.Time
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.Future

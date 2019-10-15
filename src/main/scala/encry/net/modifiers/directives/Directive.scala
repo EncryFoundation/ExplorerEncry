@@ -4,7 +4,7 @@ import TransactionProto.TransactionProtoMessage.DirectiveProtoMessage
 import io.circe._
 import org.encryfoundation.common.serialization.BytesSerializable
 import scorex.crypto.hash.Digest32
-import org.encryfoundation.generator.modifiers.box.Box
+import encry.net.modifiers.box.Box
 
 trait Directive extends BytesSerializable {
 

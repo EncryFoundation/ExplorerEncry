@@ -1,14 +1,15 @@
 package encry
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import cats.effect.{Blocker, IO}
+import cats.effect.{Blocker, ContextShift, IO}
 import cats.implicits._
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import encry.database.{DBActor, DBService}
+import encry.net.network.NetworkServer
+import encry.net.utils.NetworkTimeProvider
 import encry.settings.ExplorerSettings
-import doobie.implicits._
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
@@ -20,7 +21,7 @@ object ExplorerApp extends App {
 
   val settings = ExplorerSettings.read
 
-  implicit val cs = IO.contextShift(ExecutionContext.global)
+  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   val pgTransactor = for {
     ce <- ExecutionContexts.fixedThreadPool[IO](settings.databaseSettings.maxPoolSize)
@@ -42,9 +43,12 @@ object ExplorerApp extends App {
         ds.setConnectionTimeout(settings.databaseSettings.connectionTimeout)
       }
     } *> IO {
-      val dbService = DBService(xa)
-      val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
-      system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
+      val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
+      val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider), "networkServer")
+
+//      val dbService = DBService(xa)
+//      val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
+//      system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
     } *> IO.never
   }.unsafeRunSync()
 }

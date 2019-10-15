@@ -2,8 +2,8 @@ package encry.net.modifiers
 
 import TransactionProto.TransactionProtoMessage
 import com.google.protobuf.ByteString
-import org.encryfoundation.generator.modifiers.box.Box
-import org.encryfoundation.generator.modifiers.directives.{Directive, DirectiveProtoSerializer}
+import encry.net.modifiers.box.Box
+import encry.net.modifiers.directives.{Directive, DirectiveProtoSerializer}
 import scorex.crypto.hash.{Blake2b256, Digest32}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor}

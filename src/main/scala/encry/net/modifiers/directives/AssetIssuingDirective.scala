@@ -11,7 +11,7 @@ import org.encryfoundation.common.utils.{Algos, Utils}
 import org.encryfoundation.common.utils.constants.TestNetConstants
 import org.encryfoundation.prismlang.compiler.CompiledContract.ContractHash
 import scorex.crypto.hash.Digest32
-import org.encryfoundation.generator.modifiers.box.{Box, EncryProposition, TokenIssuingBox}
+import encry.net.modifiers.box.{Box, EncryProposition, TokenIssuingBox}
 
 import scala.util.Try
 

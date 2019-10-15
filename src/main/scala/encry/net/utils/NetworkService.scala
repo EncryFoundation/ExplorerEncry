@@ -9,21 +9,22 @@ import io.circe.{Decoder, HCursor}
 import io.circe.parser.decode
 import org.encryfoundation.common.modifiers.mempool.transaction.PubKeyLockedContract
 import org.encryfoundation.common.utils.Algos
-import org.encryfoundation.generator.GeneratorApp._
-import org.encryfoundation.generator.modifiers.box.Box
+import encry.net.modifiers.box.Box
+import encry.settings.{NetworkSettings, NodeSettings}
 
 import scala.concurrent.Future
 import scala.util.control.NonFatal
+import encry.ExplorerApp._
 
 object NetworkService extends StrictLogging {
 
-  def requestUtxos(node: Node, from: Int, to: Int): Future[List[Box]] = {
-    val privKey = Mnemonic.createPrivKey(Option(node.mnemonicKey))
+  def requestUtxos(settings: NodeSettings, from: Int, to: Int): Future[List[Box]] = {
+    val privKey = Mnemonic.createPrivKey(Option(settings.mnemonicKey))
     val contractHash: String = Algos.encode(PubKeyLockedContract(privKey.publicImage.pubKeyBytes).contract.hash)
     Http().singleRequest(HttpRequest(
       method = HttpMethods.GET,
       uri = s"/wallet/$contractHash/boxes/$from/$to"
-    ).withEffectiveUri(securedConnection = false, Host(node.explorerHost, node.explorerPort)))
+    ).withEffectiveUri(securedConnection = false, Host(settings.explorerHost, settings.explorerPort)))
       .flatMap(_.entity.dataBytes.runFold(ByteString.empty)(_ ++ _))
       .map(_.utf8String)
       .map(decode[List[Box]])

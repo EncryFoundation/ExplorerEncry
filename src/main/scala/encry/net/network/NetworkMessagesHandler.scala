@@ -3,15 +3,14 @@ package encry.net.network
 import akka.actor.{Actor, Props}
 import com.typesafe.scalalogging.StrictLogging
 import org.encryfoundation.common.utils.Algos
-import org.encryfoundation.generator.actors.Generator.TransactionForCommit
-import org.encryfoundation.generator.network.BasicMessagesRepo._
-import org.encryfoundation.generator.network.NetworkMessagesHandler.BroadcastInvForTx
-import org.encryfoundation.generator.modifiers.{Transaction, TransactionProtoSerializer}
-import org.encryfoundation.generator.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
-import org.encryfoundation.generator.utils.{CoreTaggedTypes, Settings}
+import encry.net.network.BasicMessagesRepo._
+import encry.net.network.NetworkMessagesHandler.{BroadcastInvForTx, TransactionForCommit}
+import encry.net.modifiers.{Transaction, TransactionProtoSerializer}
+import encry.net.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
+import encry.net.utils.CoreTaggedTypes
 import supertagged.@@
 
-class NetworkMessagesHandler(settings: Settings) extends Actor with StrictLogging {
+class NetworkMessagesHandler() extends Actor with StrictLogging {
 
   var localGeneratedTransactions: Seq[Transaction] = Seq.empty
 
@@ -41,8 +40,8 @@ class NetworkMessagesHandler(settings: Settings) extends Actor with StrictLoggin
 }
 
 object NetworkMessagesHandler {
-
+  case class TransactionForCommit(tx: Transaction)
   case class BroadcastInvForTx(tx: Transaction)
 
-  def props(settings: Settings) = Props(new NetworkMessagesHandler(settings))
+  def props() = Props(new NetworkMessagesHandler())
 }

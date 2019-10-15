@@ -1,6 +1,7 @@
 package encry.net.network
 
 import java.net.InetSocketAddress
+
 import NetworkMessagesProto.GeneralizedNetworkProtoMessage
 import NetworkMessagesProto.GeneralizedNetworkProtoMessage.InnerMessage
 import NetworkMessagesProto.GeneralizedNetworkProtoMessage.InnerMessage._
@@ -11,10 +12,11 @@ import akka.actor.ActorRef
 import com.google.protobuf.{ByteString => GoogleByteString}
 import akka.util.{ByteString => AkkaByteString}
 import com.typesafe.scalalogging.StrictLogging
-import org.encryfoundation.generator.network.BasicMessagesRepo.BasicMsgDataTypes.{InvData, ModifiersData}
-import org.encryfoundation.generator.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
-import org.encryfoundation.generator.utils.Settings
+import encry.net.network.BasicMessagesRepo.BasicMsgDataTypes.{InvData, ModifiersData}
+import encry.net.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
+import encry.settings.ExplorerSettings
 import scorex.crypto.hash.Blake2b256
+
 import scala.util.Try
 
 object BasicMessagesRepo extends StrictLogging {
@@ -34,7 +36,7 @@ object BasicMessagesRepo extends StrictLogging {
 
     def toInnerMessage: InnerMessage
 
-    def isValid(setting: Settings): Boolean
+    def isValid(syncPacketLength: Int): Boolean
   }
 
   sealed trait ProtoNetworkMessagesSerializer[T] {
@@ -153,8 +155,8 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = SyncInfoNetworkMessage.NetworkMessageTypeID
 
-    override def isValid(setting: Settings): Boolean =
-      if (esi.lastHeaderIds.size <= setting.network.syncPacketLength) true else false
+    override def isValid(syncPacketLength: Int): Boolean =
+      if (esi.lastHeaderIds.size <= syncPacketLength) true else false
   }
 
   object SyncInfoNetworkMessage {
@@ -191,8 +193,8 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = InvNetworkMessage.NetworkMessageTypeID
 
-    override def isValid(setting: Settings): Boolean =
-      if (data._2.size <= setting.network.syncPacketLength) true else false
+    override def isValid(syncPacketLength: Int): Boolean =
+      if (data._2.size <= syncPacketLength) true else false
   }
 
   object InvNetworkMessage {
@@ -234,8 +236,8 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = RequestModifiersNetworkMessage.NetworkMessageTypeID
 
-    override def isValid(setting: Settings): Boolean =
-      if (data._2.size <= setting.network.syncPacketLength) true else false
+    override def isValid(syncPacketLength: Int): Boolean =
+      if (data._2.size <= syncPacketLength) true else false
   }
 
   object RequestModifiersNetworkMessage {
@@ -280,8 +282,8 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = ModifiersNetworkMessage.NetworkMessageTypeID
 
-    override def isValid(setting: Settings): Boolean =
-      if (data._2.size <= setting.network.syncPacketLength) true else false
+    override def isValid(syncPacketLength: Int): Boolean =
+      if (data._2.size <= syncPacketLength) true else false
   }
 
   object ModifiersNetworkMessage {
@@ -325,7 +327,7 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = 1: Byte
 
-    override def isValid(setting: Settings): Boolean = true
+    override def isValid(syncPacketLength: Int): Boolean = true
   }
 
   /**
@@ -345,7 +347,7 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = PeersNetworkMessage.NetworkMessageTypeID
 
-    override def isValid(setting: Settings): Boolean = true
+    override def isValid(syncPacketLength: Int): Boolean = true
   }
 
   object PeersNetworkMessage {
@@ -398,7 +400,7 @@ object BasicMessagesRepo extends StrictLogging {
 
     override val NetworkMessageTypeID: Byte = Handshake.NetworkMessageTypeID
 
-    override def isValid(setting: Settings): Boolean = true
+    override def isValid(syncPacketLength: Int): Boolean = true
   }
 
   object Handshake {

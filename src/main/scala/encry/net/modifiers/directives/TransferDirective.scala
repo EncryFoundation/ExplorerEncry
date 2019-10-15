@@ -13,7 +13,7 @@ import org.encryfoundation.common.utils.TaggedTypes.ADKey
 import org.encryfoundation.common.utils.{Algos, Utils}
 import org.encryfoundation.common.utils.constants.{Constants, TestNetConstants}
 import scorex.crypto.hash.Digest32
-import org.encryfoundation.generator.modifiers.box.{AssetBox, Box, EncryProposition}
+import encry.net.modifiers.box.{AssetBox, Box, EncryProposition}
 
 import scala.util.Try
 
