@@ -7,13 +7,20 @@ import akka.actor.{Actor, Props}
 import com.typesafe.scalalogging.StrictLogging
 import org.encryfoundation.common.utils.Algos
 import BasicMessagesRepo._
-import NetworkMessagesHandler._
+import ModifierMessages._
 import org.encryfoundation.common.modifiers.history.{Header, HeaderProtoSerializer, Payload, PayloadProtoSerializer}
 import org.encryfoundation.common.modifiers.mempool.transaction.{Transaction, TransactionProtoSerializer}
+
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 //TODO: replace everywhere encry.net to org.encryfoundation.common
 
 class NetworkMessagesHandler() extends Actor with StrictLogging {
+
+  val selection = context.actorSelection("akka.tcp://frontendActorSystem@localhost:46619/user/receiver")
+
+  //context.system.scheduler.schedule(1 seconds, 2 seconds) (selection ! ReceiveTransaction(null))
 
   override def receive: Receive = {
 
@@ -36,39 +43,39 @@ class NetworkMessagesHandler() extends Actor with StrictLogging {
           modifierTypeId match {
             case Transaction.modifierTypeId =>
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
-              tx.foreach(self ! ReceiveTransaction(_))
+              tx.foreach { tx =>
+                println(s"tx: $tx")
+                selection ! ModifierTx(tx)
+              }
 
             case Header.modifierTypeId =>
               val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
-              header.foreach(self ! ReceiveHeader(_))
+              header.foreach { header =>
+                println(s"header: $header")
+                selection ! ModifierHeader(header)
+              }
 
             case Payload.modifierTypeId =>
               val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
-              payload.foreach(self ! ReceivePayload(_))
+              payload.foreach { payload =>
+                println(s"payload: txs ${payload.txs.size}")
+                selection ! ModifierPayload(payload)
+              }
           }
         }
 
       case _ =>
     }
-
-    case ReceiveTransaction(tx: Transaction) => println(s"tx: $tx")
-
-    case ReceiveHeader(header: Header) => println(s"header: $header")
-
-    case ReceivePayload(payload: Payload) => println(s"payload: txs ${payload.txs.size}")
-
-
     case _ =>
   }
 }
 
+object ModifierMessages {
+  case class ModifierTx(tx: Transaction)
+  case class ModifierHeader(header: Header)
+  case class ModifierPayload(payload: Payload)
+}
+
 object NetworkMessagesHandler {
-
-  case class ReceiveTransaction(tx: Transaction)
-
-  case class ReceiveHeader(header: Header)
-
-  case class ReceivePayload(payload: Payload)
-
   def props() = Props(new NetworkMessagesHandler())
 }
