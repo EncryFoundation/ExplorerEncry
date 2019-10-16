@@ -3,7 +3,7 @@ package encry.settings
 import java.net.InetSocketAddress
 
 import com.typesafe.config.{Config, ConfigFactory}
-import encry.net.utils.NetworkTimeProviderSettings
+import encry.network.NetworkTimeProviderSettings
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader

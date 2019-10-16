@@ -1,12 +1,14 @@
-package encry.net.utils
+package encry.network
 
 import java.net.InetAddress
+
 import com.typesafe.scalalogging.StrictLogging
+import NetworkTime.Time
 import org.apache.commons.net.ntp.{NTPUDPClient, TimeInfo}
-import encry.net.utils.NetworkTime.Time
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Left
 import scala.util.control.NonFatal
 

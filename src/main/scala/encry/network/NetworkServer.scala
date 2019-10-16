@@ -1,4 +1,4 @@
-package encry.net.network
+package encry.network
 
 import java.net.InetSocketAddress
 
@@ -7,18 +7,12 @@ import akka.io.Tcp.SO.KeepAlive
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import com.typesafe.scalalogging.StrictLogging
-import encry.net.network.BasicMessagesRepo.{InvNetworkMessage, Outgoing}
-import encry.net.network.NetworkMessagesHandler.{BroadcastInvForTx, TransactionForCommit}
-import encry.net.network.NetworkServer.{CheckConnection, ConnectionSetupSuccessfully}
-import encry.net.network.PeerHandler._
-import encry.net.modifiers.Transaction
-import encry.net.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
-import encry.net.utils.Mnemonic.createPrivKey
-import encry.net.utils.NetworkTimeProvider
+import NetworkServer.{CheckConnection, ConnectionSetupSuccessfully}
+import PeerHandler._
 import encry.settings.NetworkSettings
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration._
 
 class NetworkServer(settings: NetworkSettings,
                     timeProvider: NetworkTimeProvider) extends Actor with StrictLogging {
@@ -51,7 +45,7 @@ class NetworkServer(settings: NetworkSettings,
 
     case Connected(remote, _) if !isConnected && remote.getAddress == connectingPeer.getAddress =>
       val handler: ActorRef = context.actorOf(
-        PeerHandler.props(remote, sender(), settings, timeProvider, Outgoing, messagesHandler)
+        PeerHandler.props(remote, sender(), settings, timeProvider, messagesHandler)
       )
       logger.info(s"Successfully connected to $remote. Creating handler: $handler.")
       isConnected = true
@@ -78,16 +72,8 @@ class NetworkServer(settings: NetworkSettings,
       tmpConnectionHandler = None
       logger.info(s"Disconnected from $peer.")
 
-    case BroadcastInvForTx(tx) =>
-      val inv: BasicMessagesRepo.NetworkMessage =
-        InvNetworkMessage(ModifierTypeId @@ Transaction.modifierTypeId -> Seq(ModifierId @@ tx.id))
-      tmpConnectionHandler.foreach(_ ! inv)
-      logger.debug(s"Send inv message to remote.")
-
     case ConnectionSetupSuccessfully =>
       //logger.info(s"Created generator actor for ${peer.explorerHost}:${peer.explorerPort}.")
-
-    case msg@TransactionForCommit(_) => messagesHandler ! msg
 
     case msg => logger.info(s"Got strange message on NetworkServer: $msg.")
   }

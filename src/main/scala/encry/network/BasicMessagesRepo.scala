@@ -1,4 +1,4 @@
-package encry.net.network
+package encry.network
 
 import java.net.InetSocketAddress
 
@@ -12,10 +12,11 @@ import akka.actor.ActorRef
 import com.google.protobuf.{ByteString => GoogleByteString}
 import akka.util.{ByteString => AkkaByteString}
 import com.typesafe.scalalogging.StrictLogging
-import encry.net.network.BasicMessagesRepo.BasicMsgDataTypes.{InvData, ModifiersData}
-import encry.net.utils.CoreTaggedTypes.{ModifierId, ModifierTypeId}
-import encry.settings.ExplorerSettings
+import BasicMessagesRepo.BasicMsgDataTypes.{InvData, ModifiersData}
+import org.encryfoundation.common.utils.TaggedTypes
+import org.encryfoundation.common.utils.TaggedTypes.{ModifierId, ModifierTypeId}
 import scorex.crypto.hash.Blake2b256
+import supertagged.@@
 
 import scala.util.Try
 
@@ -454,7 +455,7 @@ object BasicMessagesRepo extends StrictLogging {
 
   case class SyncInfo(lastHeaderIds: Seq[ModifierId]) {
 
-    def startingPoints = lastHeaderIds.map(id => ModifierTypeId @@ (101: Byte) -> id)
+    def startingPoints: Seq[(Byte @@ TaggedTypes.ModifierTypeId.Tag, ModifierId)] = lastHeaderIds.map(id => ModifierTypeId @@ (101: Byte) -> id)
 
   }
 }

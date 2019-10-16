@@ -1,4 +1,4 @@
-package encry.net.network
+package encry.network
 
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
@@ -9,10 +9,9 @@ import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.google.common.primitives.Ints
 import com.typesafe.scalalogging.StrictLogging
-import encry.net.network.PeerHandler._
-import encry.net.network.BasicMessagesRepo._
-import encry.net.network.NetworkServer.ConnectionSetupSuccessfully
-import encry.net.utils.NetworkTimeProvider
+import PeerHandler._
+import BasicMessagesRepo._
+import NetworkServer.ConnectionSetupSuccessfully
 import encry.settings.NetworkSettings
 
 import scala.annotation.tailrec
@@ -24,7 +23,6 @@ class PeerHandler(remoteAddress: InetSocketAddress,
                   listener: ActorRef,
                   settings: NetworkSettings,
                   timeProvider: NetworkTimeProvider,
-                  direction: ConnectionType,
                   receivedMessagesHandler: ActorRef) extends Actor with StrictLogging {
 
   context.watch(listener)
@@ -229,7 +227,6 @@ object PeerHandler {
             listener: ActorRef,
             settings: NetworkSettings,
             timeProvider: NetworkTimeProvider,
-            direction: ConnectionType,
             messagesHandler: ActorRef): Props =
-    Props(new PeerHandler(remoteAddress, listener, settings, timeProvider, direction, messagesHandler))
+    Props(new PeerHandler(remoteAddress, listener, settings, timeProvider, messagesHandler))
 }

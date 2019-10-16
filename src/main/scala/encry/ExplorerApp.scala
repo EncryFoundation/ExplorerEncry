@@ -6,8 +6,7 @@ import cats.effect.{Blocker, ContextShift, IO}
 import cats.implicits._
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
-import encry.net.network.NetworkServer
-import encry.net.utils.NetworkTimeProvider
+import encry.network.{NetworkServer, NetworkTimeProvider}
 import encry.settings.ExplorerSettings
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
