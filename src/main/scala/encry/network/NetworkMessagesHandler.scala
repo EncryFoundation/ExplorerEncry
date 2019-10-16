@@ -21,6 +21,7 @@ class NetworkMessagesHandler() extends Actor with StrictLogging {
 
       case InvNetworkMessage((modifierTypeId, modifierIds)) =>
         logger.debug(s"Got modifiers: $modifierTypeId (${modifierIds.map(Algos.encode).mkString(",")})")
+        println(s"Got modifier: ${peerOpt.get}")
         peerOpt.foreach { peer =>
           if (List(Transaction.modifierTypeId, Header.modifierTypeId, Payload.modifierTypeId).contains(modifierTypeId)) {
             logger.debug(s"Request modifier: $modifierTypeId ${modifierIds.map(Algos.encode).mkString(",")}")
@@ -49,6 +50,14 @@ class NetworkMessagesHandler() extends Actor with StrictLogging {
 
       case _ =>
     }
+
+    case ReceiveTransaction(tx: Transaction) => println(s"tx: $tx")
+
+    case ReceiveHeader(header: Header) => println(s"header: $header")
+
+    case ReceivePayload(payload: Payload) => println(s"payload: txs ${payload.txs.size}")
+
+
     case _ =>
   }
 }

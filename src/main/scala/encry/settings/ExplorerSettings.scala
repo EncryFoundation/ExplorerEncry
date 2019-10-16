@@ -14,7 +14,6 @@ case class ExplorerSettings(parseSettings: ParseSettings,
                             blackListSettings: BlackListSettings,
                             databaseSettings: DatabaseSettings,
                             ntpSettings: NetworkTimeProviderSettings,
-                            nodeSettings: NodeSettings,
                             networkSettings: NetworkSettings,
                             multisigSettings: MultisigSettings)
 
@@ -29,8 +28,6 @@ case class NetworkSettings(syncPacketLength: Int,
                            peerForConnectionApiPort: Int,
                            declaredAddressHost: String,
                            declaredAddressPort: Int)
-
-case class NodeSettings(explorerHost: String, explorerPort: Int, mnemonicKey: String)
 
 case class MultisigSettings(checkTxMinedPeriod: Int, numberOfBlocksToCheck: Int, mnemonicKeys: List[String])
 
