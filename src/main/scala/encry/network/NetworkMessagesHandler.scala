@@ -57,6 +57,8 @@ class NetworkMessagesHandler(frontHost: String, frontPort: Int) extends Actor wi
               val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
               payload.foreach { payload =>
                 println(s"payload: ${payload.encodedId} txs ${payload.txs.size}")
+                payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
+                println(s"payload.end")
                 frontRemoteActor ! payload
               }
           }
