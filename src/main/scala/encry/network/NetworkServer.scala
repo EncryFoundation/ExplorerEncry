@@ -14,15 +14,14 @@ import encry.settings.NetworkSettings
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
-class NetworkServer(settings: NetworkSettings,
-                    timeProvider: NetworkTimeProvider) extends Actor with StrictLogging {
+class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider, frontend: FrontendSettings) extends Actor with StrictLogging {
 
   implicit val system: ActorSystem = context.system
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   var isConnected = false
 
-  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props())
+  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props(frontend.host, frontend.port))
 
   var tmpConnectionHandler: Option[ActorRef] = None
 
@@ -83,6 +82,6 @@ object NetworkServer {
   case object CheckConnection
   case object ConnectionSetupSuccessfully
 
-  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider): Props =
-    Props(new NetworkServer(settings, timeProvider))
+  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider, frontend: FrontendSettings): Props =
+    Props(new NetworkServer(settings, timeProvider, frontend))
 }

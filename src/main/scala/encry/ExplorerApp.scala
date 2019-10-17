@@ -42,7 +42,7 @@ object ExplorerApp extends App {
       }
     } *> IO {
       val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
-      val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider), "networkServer")
+      val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider, settings.frontendSettings), "networkServer")
 
 //      val dbService = DBService(xa)
 //      val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")

@@ -23,6 +23,8 @@ protected case class NetworkTime(offset: NetworkTime.Offset, lastUpdate: Network
 
 case class NetworkTimeProviderSettings(server: String, updateEvery: FiniteDuration, timeout: FiniteDuration)
 
+case class FrontendSettings(host: String, port: Int)
+
 class NetworkTimeProvider(ntpSettings: NetworkTimeProviderSettings) extends StrictLogging {
 
   private var state: State = Right(NetworkTime(0L, 0L))

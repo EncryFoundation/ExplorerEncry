@@ -16,11 +16,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 //TODO: replace everywhere encry.net to org.encryfoundation.common
 
-class NetworkMessagesHandler() extends Actor with StrictLogging {
+class NetworkMessagesHandler(frontHost: String, frontPort: Int) extends Actor with StrictLogging {
 
-  val selection = context.actorSelection("akka.tcp://frontendActorSystem@localhost:46619/user/receiver")
-
-  //context.system.scheduler.schedule(1 seconds, 2 seconds) (selection ! ReceiveTransaction(null))
+  val frontRemoteActor = context.actorSelection(s"akka.tcp://application@$frontHost:$frontPort/user/receiver")
 
   override def receive: Receive = {
 
@@ -44,22 +42,22 @@ class NetworkMessagesHandler() extends Actor with StrictLogging {
             case Transaction.modifierTypeId =>
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
               tx.foreach { tx =>
-                println(s"tx: $tx")
-                selection ! ModifierTx(tx)
+                println(s"tx: ${tx.encodedId}")
+                frontRemoteActor ! tx
               }
 
             case Header.modifierTypeId =>
               val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
               header.foreach { header =>
-                println(s"header: $header")
-                selection ! ModifierHeader(header)
+                println(s"header: ${header.encodedId}")
+                frontRemoteActor ! header
               }
 
             case Payload.modifierTypeId =>
               val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
               payload.foreach { payload =>
-                println(s"payload: txs ${payload.txs.size}")
-                selection ! ModifierPayload(payload)
+                println(s"payload: ${payload.encodedId} txs ${payload.txs.size}")
+                frontRemoteActor ! payload
               }
           }
         }
@@ -77,5 +75,5 @@ object ModifierMessages {
 }
 
 object NetworkMessagesHandler {
-  def props() = Props(new NetworkMessagesHandler())
+  def props(frontHost: String, frontPort: Int) = Props(new NetworkMessagesHandler(frontHost, frontPort))
 }

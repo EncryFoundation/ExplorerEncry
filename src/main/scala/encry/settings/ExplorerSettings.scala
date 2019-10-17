@@ -3,7 +3,7 @@ package encry.settings
 import java.net.InetSocketAddress
 
 import com.typesafe.config.{Config, ConfigFactory}
-import encry.network.NetworkTimeProviderSettings
+import encry.network.{FrontendSettings, NetworkTimeProviderSettings}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 import net.ceedubs.ficus.readers.ValueReader
@@ -15,7 +15,8 @@ case class ExplorerSettings(parseSettings: ParseSettings,
                             databaseSettings: DatabaseSettings,
                             ntpSettings: NetworkTimeProviderSettings,
                             networkSettings: NetworkSettings,
-                            multisigSettings: MultisigSettings)
+                            multisigSettings: MultisigSettings,
+                            frontendSettings: FrontendSettings)
 
 case class NetworkSettings(syncPacketLength: Int,
                            bindAddressHost: String,
