@@ -2,7 +2,7 @@ package encry.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSelection, ActorSystem, Props}
 import akka.io.Tcp.SO.KeepAlive
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
@@ -14,14 +14,15 @@ import encry.settings.NetworkSettings
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
-class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider, frontend: FrontendSettings) extends Actor with StrictLogging {
+class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider,
+                    dbActor: ActorRef, frontRemoteActor: ActorSelection) extends Actor with StrictLogging {
 
   implicit val system: ActorSystem = context.system
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   var isConnected = false
 
-  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props(frontend.host, frontend.port))
+  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props(frontRemoteActor: ActorSelection))
 
   var tmpConnectionHandler: Option[ActorRef] = None
 
@@ -34,6 +35,7 @@ class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider
   IO(Tcp) ! Bind(self, selfPeer)
 
   override def receive: Receive = {
+
     case Bound(localAddress) =>
       logger.info(s"Local app was successfully bound to $localAddress!")
       context.system.scheduler.schedule(5.seconds, 30.seconds, self, CheckConnection)
@@ -82,6 +84,6 @@ object NetworkServer {
   case object CheckConnection
   case object ConnectionSetupSuccessfully
 
-  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider, frontend: FrontendSettings): Props =
-    Props(new NetworkServer(settings, timeProvider, frontend))
+  def props(settings: NetworkSettings, timeProvider: NetworkTimeProvider, frontRemoteActor: ActorSelection): Props =
+    Props(new NetworkServer(settings, timeProvider, frontRemoteActor))
 }

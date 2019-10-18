@@ -1,17 +1,16 @@
-package encry
+package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
-import encry.parser.{NodeParser, SimpleNodeParser}
-import encry.settings.{BlackListSettings, ParseSettings}
 import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
-import encry.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.database.DBActor.RecoveryMode
 import encry.parser.NodeParser.PeersFromApi
+import encry.parser.ParsersController.{BadPeer, RemoveBadPeer}
+import encry.settings.{BlackListSettings, ParseSettings}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings,

@@ -6,6 +6,7 @@ import cats.effect.{Blocker, ContextShift, IO}
 import cats.implicits._
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
+import encry.database.{DBActor, DBService}
 import encry.network.{NetworkServer, NetworkTimeProvider}
 import encry.settings.ExplorerSettings
 
@@ -16,6 +17,9 @@ object ExplorerApp extends App {
   implicit val system: ActorSystem = ActorSystem()
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContextExecutor = system.dispatcher
+
+  val frontRemoteActor =
+    system.actorSelection(s"akka.tcp://application@${settings.frontendSettings.host}:${settings.frontendSettings.port}/user/receiver")
 
   val settings = ExplorerSettings.read
 
@@ -41,12 +45,14 @@ object ExplorerApp extends App {
         ds.setConnectionTimeout(settings.databaseSettings.connectionTimeout)
       }
     } *> IO {
-      val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
-      val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider, settings.frontendSettings), "networkServer")
 
-//      val dbService = DBService(xa)
-//      val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
-//      system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
+      val dbService = DBService(xa)
+      val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
+      //system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
+
+      val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
+      val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider, frontRemoteActor), "networkServer")
+
     } *> IO.never
   }.unsafeRunSync()
 }
