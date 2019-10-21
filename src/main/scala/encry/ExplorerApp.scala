@@ -49,10 +49,13 @@ object ExplorerApp extends App {
 
       val dbService = DBService(xa)
       val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
-      val parsersController = system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
 
       val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
       val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider, frontRemoteActor), "networkServer")
+
+      val parsersController = system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor, networkServer)),
+        s"parserController")
+
 
     } *> IO.never
   }.unsafeRunSync()

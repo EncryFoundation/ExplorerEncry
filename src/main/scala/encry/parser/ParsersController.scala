@@ -6,7 +6,8 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
 import encry.database.DBActor.RecoveryMode
-import encry.parser.NodeParser.PeersFromApi
+import encry.network.NetworkServer
+import encry.parser.NodeParser.{BlockFromNode, PeersFromApi}
 import encry.parser.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.settings.{BlackListSettings, ParseSettings}
 
@@ -15,7 +16,8 @@ import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings,
                         blackListSettings: BlackListSettings,
-                        dbActor: ActorRef) extends Actor with StrictLogging {
+                        dbActor: ActorRef,
+                        networkServer: ActorRef) extends Actor with StrictLogging {
 
   var peerReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
 
@@ -75,6 +77,10 @@ class ParsersController(settings: ParseSettings,
       peerReconnects --= peersForRemove.map(_._1)
       context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
       context.become(mainBehaviour(knownPeers -- peersForRemove.map(_._1)))
+
+    case msg @ BlockFromNode(block, node, currentNodeInfo) =>
+      dbActor ! msg
+      networkServer ! msg
 
     case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }

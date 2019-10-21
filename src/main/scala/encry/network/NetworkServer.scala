@@ -79,9 +79,13 @@ class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider
       //logger.info(s"Created generator actor for ${peer.explorerHost}:${peer.explorerPort}.")
 
     case tx: Transaction =>
+      println(s"tx: ${tx.encodedId}")
       frontRemoteActor ! tx
 
     case BlockFromNode(block, nodeAddr, nodeInfo) =>
+      println(s"payload: ${block.payload.headerId} txs ${block.payload.txs.size}")
+      block.payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
+      println(s"payload.end")
       frontRemoteActor ! block.payload
 
     case msg => logger.info(s"Got strange message on NetworkServer: $msg.")

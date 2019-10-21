@@ -31,10 +31,7 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
           modifierTypeId match {
             case Transaction.modifierTypeId =>
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
-              tx.foreach { tx =>
-                println(s"tx: ${tx.encodedId}")
-                networkServer ! tx
-              }
+              tx.foreach(networkServer ! _)
 
 //            case Header.modifierTypeId =>
 //              val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
