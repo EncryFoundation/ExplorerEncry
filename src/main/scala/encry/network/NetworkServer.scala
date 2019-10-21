@@ -84,9 +84,10 @@ class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider
 
     case BlockFromNode(block, nodeAddr, nodeInfo) =>
       println(s"payload: ${block.payload.headerId} txs ${block.payload.txs.size}")
-      block.payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
+      block.payload.txs.foreach(tx => println(s"payload.tx: ${tx.id}"))
       println(s"payload.end")
-      frontRemoteActor ! block.payload
+      val txIds = block.payload.txs.map(_.id)
+      frontRemoteActor ! txIds
 
     case msg => logger.info(s"Got strange message on NetworkServer: $msg.")
   }

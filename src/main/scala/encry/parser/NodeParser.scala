@@ -195,6 +195,7 @@ class NodeParser(node: InetSocketAddress,
         parserRequests.getBlock(blockId).map { block =>
           blocksToReask -= height
           blocksToWrite += blockId -> (System.nanoTime(), height)
+          dbActor ! BlockFromNode(block, node, currentNodeInfo)
           parserController ! BlockFromNode(block, node, currentNodeInfo)
         }
       }
@@ -237,6 +238,7 @@ class NodeParser(node: InetSocketAddress,
               currentNodeBestBlockId = block.header.id
               currentBestBlockHeight.set(block.header.height)
               blocksToWrite += blockId -> (System.nanoTime(), height)
+              dbActor ! BlockFromNode(block, node, currentNodeInfo)
               parserController ! BlockFromNode(block, node, currentNodeInfo)
             }
         }}

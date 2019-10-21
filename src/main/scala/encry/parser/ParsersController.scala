@@ -79,7 +79,6 @@ class ParsersController(settings: ParseSettings,
       context.become(mainBehaviour(knownPeers -- peersForRemove.map(_._1)))
 
     case msg @ BlockFromNode(block, node, currentNodeInfo) =>
-      dbActor ! msg
       networkServer ! msg
 
     case msg => logger.info(s"Got strange message on ParserController: $msg.")

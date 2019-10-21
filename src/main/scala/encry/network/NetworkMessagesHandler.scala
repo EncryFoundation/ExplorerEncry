@@ -33,6 +33,8 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
               tx.foreach(networkServer ! _)
 
+            case _ =>
+
 //            case Header.modifierTypeId =>
 //              val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
 //              header.foreach { header =>
