@@ -32,7 +32,7 @@ class ParsersController(settings: ParseSettings,
     context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
     logger.info(s"Starting Parsing controller. Try to create listeners for: ${settings.nodes.mkString(",")}")
     settings.nodes.foreach(node =>
-      context.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"))
+      context.actorOf(NodeParser.props(node, self, dbActor, settings))
     )
     val initialPeers: Set[InetAddress] = settings.nodes.map(_.getAddress).toSet
     logger.info(s"Initial peers are: ${initialPeers.mkString(",")}. Starting main behaviour...")

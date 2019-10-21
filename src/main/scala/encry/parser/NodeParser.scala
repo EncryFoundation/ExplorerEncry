@@ -3,7 +3,7 @@ package encry.parser
 import java.net.{InetAddress, InetSocketAddress}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
 import encry.blockchain.modifiers.{Block, Header}
 import encry.blockchain.nodeRoutes.InfoRoute
@@ -282,7 +282,6 @@ class NodeParser(node: InetSocketAddress,
 
 
 object NodeParser {
-
   case class PeersFromApi(peers: Set[InetAddress])
 
   case object PingNode
@@ -300,4 +299,10 @@ object NodeParser {
   case object Recover
 
   case object BecomeAwaitDB
+
+  def props(node: InetSocketAddress,
+            parserController: ActorRef,
+            dbActor: ActorRef,
+            settings: ParseSettings): Props =
+    Props(new NodeParser(node, parserController, dbActor, settings)).withDispatcher("parser-dispatcher")
 }
