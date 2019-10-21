@@ -1,19 +1,14 @@
 package encry.network
 
-import HeaderProto.HeaderProtoMessage
-import PayloadProto.PayloadProtoMessage
 import TransactionProto.TransactionProtoMessage
-import akka.actor.{Actor, ActorSelection, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
-import org.encryfoundation.common.utils.Algos
-import BasicMessagesRepo._
-import org.encryfoundation.common.modifiers.history.{Block, Header, HeaderProtoSerializer, Payload, PayloadProtoSerializer}
+import encry.network.BasicMessagesRepo._
+import org.encryfoundation.common.modifiers.history.{Header, Payload}
 import org.encryfoundation.common.modifiers.mempool.transaction.{Transaction, TransactionProtoSerializer}
+import org.encryfoundation.common.utils.Algos
 
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-
-class NetworkMessagesHandler(frontRemoteActor: ActorSelection) extends Actor with StrictLogging {
+class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictLogging {
 
   override def receive: Receive = {
 
@@ -38,25 +33,25 @@ class NetworkMessagesHandler(frontRemoteActor: ActorSelection) extends Actor wit
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
               tx.foreach { tx =>
                 println(s"tx: ${tx.encodedId}")
-                frontRemoteActor ! tx
+                networkServer ! tx
               }
 
-            case Header.modifierTypeId =>
-              val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
-              header.foreach { header =>
-                println(s"header: ${header.encodedId}")
-                frontRemoteActor ! header
-              }
-
-            case Payload.modifierTypeId =>
-              val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
-
-              payload.foreach { payload =>
-                println(s"payload: ${payload.encodedId} txs ${payload.txs.size}")
-                payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
-                println(s"payload.end")
-                frontRemoteActor ! payload
-              }
+//            case Header.modifierTypeId =>
+//              val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
+//              header.foreach { header =>
+//                println(s"header: ${header.encodedId}")
+//                networkServer ! header
+//              }
+//
+//            case Payload.modifierTypeId =>
+//              val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
+//
+//              payload.foreach { payload =>
+//                println(s"payload: ${payload.encodedId} txs ${payload.txs.size}")
+//                payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
+//                println(s"payload.end")
+//                networkServer ! payload
+//              }
           }
         }
 
@@ -70,5 +65,5 @@ object NetworkMessagesHandler {
   case class Transaction(tx: Transaction)
   case class Block(block: Block)
 
-  def props(frontRemoteActor: ActorSelection) = Props(new NetworkMessagesHandler(frontRemoteActor))
+  def props(networkServer: ActorRef) = Props(new NetworkMessagesHandler(networkServer))
 }

@@ -9,20 +9,22 @@ import akka.io.{IO, Tcp}
 import com.typesafe.scalalogging.StrictLogging
 import NetworkServer.{CheckConnection, ConnectionSetupSuccessfully}
 import PeerHandler._
+import encry.parser.NodeParser.BlockFromNode
 import encry.settings.NetworkSettings
+import org.encryfoundation.common.modifiers.mempool.transaction.Transaction
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider,
-                    dbActor: ActorRef, frontRemoteActor: ActorSelection) extends Actor with StrictLogging {
+                    frontRemoteActor: ActorSelection) extends Actor with StrictLogging {
 
   implicit val system: ActorSystem = context.system
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   var isConnected = false
 
-  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props(frontRemoteActor: ActorSelection))
+  val messagesHandler: ActorRef = context.actorOf(NetworkMessagesHandler.props(self))
 
   var tmpConnectionHandler: Option[ActorRef] = None
 
@@ -75,6 +77,12 @@ class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider
 
     case ConnectionSetupSuccessfully =>
       //logger.info(s"Created generator actor for ${peer.explorerHost}:${peer.explorerPort}.")
+
+    case tx: Transaction =>
+      frontRemoteActor ! tx
+
+    case BlockFromNode(block, nodeAddr, nodeInfo) =>
+      frontRemoteActor ! block.payload
 
     case msg => logger.info(s"Got strange message on NetworkServer: $msg.")
   }

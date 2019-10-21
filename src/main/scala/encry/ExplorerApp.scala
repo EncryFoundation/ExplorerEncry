@@ -8,6 +8,7 @@ import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import encry.database.{DBActor, DBService}
 import encry.network.{NetworkServer, NetworkTimeProvider}
+import encry.parser.ParsersController
 import encry.settings.ExplorerSettings
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
@@ -18,10 +19,10 @@ object ExplorerApp extends App {
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 
+  val settings = ExplorerSettings.read
+
   val frontRemoteActor =
     system.actorSelection(s"akka.tcp://application@${settings.frontendSettings.host}:${settings.frontendSettings.port}/user/receiver")
-
-  val settings = ExplorerSettings.read
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
@@ -48,7 +49,7 @@ object ExplorerApp extends App {
 
       val dbService = DBService(xa)
       val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
-      //system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
+      val parsersController = system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor)), s"parserController")
 
       val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
       val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider, frontRemoteActor), "networkServer")
