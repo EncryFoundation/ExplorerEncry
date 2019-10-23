@@ -9,9 +9,10 @@ import akka.io.Tcp._
 import akka.util.{ByteString, CompactByteString}
 import com.google.common.primitives.Ints
 import com.typesafe.scalalogging.StrictLogging
-import PeerHandler._
-import BasicMessagesRepo._
+import org.encryfoundation.common.network.BasicMessagesRepo._
 import NetworkServer.ConnectionSetupSuccessfully
+import encry.network.NetworkMessagesHandler.MessageFromNetwork
+import encry.network.PeerHandler.{Ack, ConnectedPeer, HandshakeDone, HandshakeTimeout, Outgoing, RemovePeerFromConnectionList, StartIteration}
 import encry.settings.NetworkSettings
 
 import scala.annotation.tailrec
@@ -76,7 +77,7 @@ class PeerHandler(remoteAddress: InetSocketAddress,
       timeout.foreach(_.cancel())
       context.become(workingCycleWriting(ConnectedPeer(remoteAddress, self, Outgoing, receivedHandshake.get)))
 
-    case Received(data) => GeneralizedNetworkMessage.fromProto(data) match {
+    case Received(data) => GeneralizedNetworkMessage.fromProto(data.toArray[Byte]) match {
       case Success(value) => value match {
         case handshake: Handshake =>
           logger.info(s"Got a Handshake from $remoteAddress.")
@@ -141,7 +142,7 @@ class PeerHandler(remoteAddress: InetSocketAddress,
       val packet: (List[ByteString], ByteString) = getPacket(chunksBuffer ++ data)
       chunksBuffer = packet._2
       packet._1.find { packet =>
-        GeneralizedNetworkMessage.fromProto(packet) match {
+        GeneralizedNetworkMessage.fromProto(packet.toArray[Byte]) match {
           case Success(message) =>
             receivedMessagesHandler ! MessageFromNetwork(message, Some(cp))
             logger.debug("Received message " + message.messageName + " from " + remoteAddress)
@@ -211,17 +212,21 @@ class PeerHandler(remoteAddress: InetSocketAddress,
 
 object PeerHandler {
 
-  case object StartIteration
+  sealed trait ConnectionType
+  case object Incoming extends ConnectionType
+  case object Outgoing extends ConnectionType
+
+  case class ConnectedPeer(socketAddress: InetSocketAddress, handlerRef: ActorRef, direction: ConnectionType, handshake: Handshake) {
+    override def toString: String = s"ConnectedPeer($socketAddress)"
+  }
 
   sealed trait ConnectionMessages
-
   case object HandshakeTimeout extends ConnectionMessages
-
   case object HandshakeDone extends ConnectionMessages
+  case object StartIteration
+  final case class Ack(offset: Long) extends Tcp.Event
 
   case class RemovePeerFromConnectionList(peer: InetSocketAddress) extends ConnectionMessages
-
-  final case class Ack(offset: Long) extends Tcp.Event
 
   def props(remoteAddress: InetSocketAddress,
             listener: ActorRef,

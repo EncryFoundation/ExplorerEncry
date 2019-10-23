@@ -3,9 +3,10 @@ package encry.network
 import TransactionProto.TransactionProtoMessage
 import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
-import encry.network.BasicMessagesRepo._
-import org.encryfoundation.common.modifiers.history.{Header, Payload}
+import encry.network.NetworkMessagesHandler.MessageFromNetwork
+import encry.network.PeerHandler.ConnectedPeer
 import org.encryfoundation.common.modifiers.mempool.transaction.{Transaction, TransactionProtoSerializer}
+import org.encryfoundation.common.network.BasicMessagesRepo._
 import org.encryfoundation.common.utils.Algos
 
 class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictLogging {
@@ -18,7 +19,7 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
         logger.debug(s"Got modifiers: $modifierTypeId (${modifierIds.map(Algos.encode).mkString(",")})")
         println(s"Got modifier: ${peerOpt.get}")
         peerOpt.foreach { peer =>
-          if (List(Transaction.modifierTypeId/*, Header.modifierTypeId, Payload.modifierTypeId*/).contains(modifierTypeId)) {
+          if (Transaction.modifierTypeId == modifierTypeId) {
             logger.debug(s"Request modifier: $modifierTypeId ${modifierIds.map(Algos.encode).mkString(",")}")
             peer.handlerRef ! RequestModifiersNetworkMessage((modifierTypeId, modifierIds))
           }
@@ -33,22 +34,6 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
               tx.foreach(networkServer ! _)
 
-//            case Header.modifierTypeId =>
-//              val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
-//              header.foreach { header =>
-//                println(s"header: ${header.encodedId}")
-//                networkServer ! header
-//              }
-//
-//            case Payload.modifierTypeId =>
-//              val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
-//              payload.foreach { payload =>
-//                println(s"payload: ${payload.encodedId} txs ${payload.txs.size}")
-//                payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
-//                println(s"payload.end")
-//                networkServer ! payload
-//              }
-
             case _ =>
           }
         }
@@ -60,8 +45,18 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
 }
 
 object NetworkMessagesHandler {
+
   case class Transaction(tx: Transaction)
   case class Block(block: Block)
+
+  /**
+   * @param message - message, received from network
+   * @param source - sender of received message
+   *
+   *               This case class transfers network message from PeerConnectionHandler actor to the NetworkController.
+   *               Main duty is to transfer message from network with sender of it message to the NetworkController as an end point.
+   */
+  case class MessageFromNetwork(message: NetworkMessage, source: Option[ConnectedPeer])
 
   def props(networkServer: ActorRef) = Props(new NetworkMessagesHandler(networkServer))
 }
