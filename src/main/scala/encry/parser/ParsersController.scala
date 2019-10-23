@@ -78,8 +78,8 @@ class ParsersController(settings: ParseSettings,
       context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
       context.become(mainBehaviour(knownPeers -- peersForRemove.map(_._1)))
 
-    case msg @ BlockFromNode(block, node, currentNodeInfo) =>
-      networkServer ! msg
+    case blockFromNode: BlockFromNode =>
+      networkServer ! blockFromNode
 
     case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }

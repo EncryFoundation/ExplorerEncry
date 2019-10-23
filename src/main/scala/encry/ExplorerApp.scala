@@ -46,17 +46,14 @@ object ExplorerApp extends App {
         ds.setConnectionTimeout(settings.databaseSettings.connectionTimeout)
       }
     } *> IO {
-
       val dbService = DBService(xa)
       val dbActor = system.actorOf(Props(new DBActor(dbService)), s"dbActor")
 
       val timeProvider: NetworkTimeProvider = new NetworkTimeProvider(settings.ntpSettings)
       val networkServer: ActorRef = system.actorOf(NetworkServer.props(settings.networkSettings, timeProvider, frontRemoteActor), "networkServer")
 
-      val parsersController = system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor, networkServer)),
+      system.actorOf(Props(new ParsersController(settings.parseSettings, settings.blackListSettings, dbActor, networkServer)),
         s"parserController")
-
-
     } *> IO.never
   }.unsafeRunSync()
 }
