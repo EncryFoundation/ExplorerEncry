@@ -18,7 +18,7 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
         logger.debug(s"Got modifiers: $modifierTypeId (${modifierIds.map(Algos.encode).mkString(",")})")
         println(s"Got modifier: ${peerOpt.get}")
         peerOpt.foreach { peer =>
-          if (List(Transaction.modifierTypeId, Header.modifierTypeId, Payload.modifierTypeId).contains(modifierTypeId)) {
+          if (List(Transaction.modifierTypeId/*, Header.modifierTypeId, Payload.modifierTypeId*/).contains(modifierTypeId)) {
             logger.debug(s"Request modifier: $modifierTypeId ${modifierIds.map(Algos.encode).mkString(",")}")
             peer.handlerRef ! RequestModifiersNetworkMessage((modifierTypeId, modifierIds))
           }
@@ -33,8 +33,6 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
               val tx = TransactionProtoSerializer.fromProto(TransactionProtoMessage.parseFrom(bytes))
               tx.foreach(networkServer ! _)
 
-            case _ =>
-
 //            case Header.modifierTypeId =>
 //              val header = HeaderProtoSerializer.fromProto(HeaderProtoMessage.parseFrom(bytes))
 //              header.foreach { header =>
@@ -44,13 +42,14 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
 //
 //            case Payload.modifierTypeId =>
 //              val payload = PayloadProtoSerializer.fromProto(PayloadProtoMessage.parseFrom(bytes))
-//
 //              payload.foreach { payload =>
 //                println(s"payload: ${payload.encodedId} txs ${payload.txs.size}")
 //                payload.txs.foreach(tx => println(s"payload.tx: ${tx.encodedId}"))
 //                println(s"payload.end")
 //                networkServer ! payload
 //              }
+
+            case _ =>
           }
         }
 
