@@ -77,9 +77,9 @@ object Queries extends StrictLogging {
     val txs: List[DBTransaction] = block.payload.txs.map(tx => DBTransaction(tx, block.header.id))
 
     txs.grouped(5000).map { txs => // 5000 due to pgDJBC limitations @see org.postgresql.core.PGStream:251
-      (fr"INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId) VALUES " ++
-        txs.dropRight(1).map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId}), ").fold(Fragment.empty)(_ ++ _) ++
-        txs.lastOption.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId})").get ++ // we always have at least 1 transaction in block
+      (fr"INSERT INTO public.transactions (id, fee, timestamp, proof, coinbase, blockId, transfers) VALUES " ++
+        txs.dropRight(1).map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId}, ${tx.transfers}), ").fold(Fragment.empty)(_ ++ _) ++
+        txs.lastOption.map(tx => fr"(${tx.id}, ${tx.fee}, ${tx.timestamp}, ${tx.defaultProofOpt}, ${tx.isCoinbase}, ${tx.blockId}, ${tx.transfers})").get ++ // we always have at least 1 transaction in block
         fr" ON CONFLICT DO NOTHING;").update.run
     }.reduceLeft(_ *> _)
   }

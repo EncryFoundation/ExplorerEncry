@@ -40,7 +40,8 @@ CREATE TABLE transactions(
   blockId VARCHAR(64) REFERENCES headers (id),
   coinbase BOOLEAN NOT NULL,
   timestamp BIGINT NOT NULL,
-  proof TEXT
+  proof TEXT,
+  transfers TEXT
 );
 
 CREATE INDEX block_id_index ON transactions (blockId);
