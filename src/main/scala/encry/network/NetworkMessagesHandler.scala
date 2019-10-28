@@ -16,8 +16,6 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
     case MessageFromNetwork(message, peerOpt) => message match {
 
       case InvNetworkMessage((modifierTypeId, modifierIds)) =>
-        logger.debug(s"Got modifiers: $modifierTypeId (${modifierIds.map(Algos.encode).mkString(",")})")
-        println(s"Got modifier: ${peerOpt.get}")
         peerOpt.foreach { peer =>
           if (Transaction.modifierTypeId == modifierTypeId) {
             logger.debug(s"Request modifier: $modifierTypeId ${modifierIds.map(Algos.encode).mkString(",")}")
@@ -27,7 +25,6 @@ class NetworkMessagesHandler(networkServer: ActorRef) extends Actor with StrictL
 
       case ModifiersNetworkMessage((modifierTypeId, modifierMap)) =>
         logger.debug(s"Response modifiers: $modifierTypeId size ${modifierMap.size}")
-
         modifierMap.foreach { case (modifierId, bytes) =>
           modifierTypeId match {
             case Transaction.modifierTypeId =>

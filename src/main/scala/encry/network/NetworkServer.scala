@@ -75,21 +75,15 @@ class NetworkServer(settings: NetworkSettings, timeProvider: NetworkTimeProvider
       tmpConnectionHandler = None
       logger.info(s"Disconnected from $peer.")
 
-    case ConnectionSetupSuccessfully =>
-      //logger.info(s"Created generator actor for ${peer.explorerHost}:${peer.explorerPort}.")
-
     case tx: Transaction =>
-      println(s"tx: ${tx.encodedId}")
       frontRemoteActor ! tx
 
     case BlockFromNode(block, nodeAddr, nodeInfo) =>
-      println(s"payload: ${block.payload.headerId} txs ${block.payload.txs.size}")
-      block.payload.txs.foreach(tx => println(s"payload.tx: ${tx.id}"))
-      println(s"payload.end")
       val txIds = block.payload.txs.map(_.id)
       frontRemoteActor ! txIds
 
-    case msg => logger.info(s"Got strange message on NetworkServer: $msg.")
+    case msg =>
+      logger.info(s"Got strange message on NetworkServer: $msg.")
   }
 }
 
