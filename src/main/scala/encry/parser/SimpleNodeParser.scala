@@ -3,7 +3,7 @@ package encry.parser
 import java.net.{InetAddress, InetSocketAddress}
 import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.scalalogging.StrictLogging
-import encry.ParsersController.BadPeer
+import encry.parser.ParsersController.BadPeer
 import encry.blockchain.nodeRoutes.InfoRoute
 import encry.database.DBActor.UpdatedInfoAboutNode
 import encry.parser.NodeParser.{PeersFromApi, PingNode}

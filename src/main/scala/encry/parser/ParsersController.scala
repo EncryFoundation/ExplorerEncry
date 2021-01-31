@@ -1,22 +1,23 @@
-package encry
+package encry.parser
 
 import java.net.{InetAddress, InetSocketAddress}
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
-import encry.parser.{NodeParser, SimpleNodeParser}
-import encry.settings.{BlackListSettings, ParseSettings}
 import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props, SupervisorStrategy}
 import com.typesafe.scalalogging.StrictLogging
-import encry.ParsersController.{BadPeer, RemoveBadPeer}
 import encry.database.DBActor.RecoveryMode
-import encry.parser.NodeParser.PeersFromApi
+import encry.network.NetworkServer
+import encry.parser.NodeParser.{BlockFromNode, PeersFromApi}
+import encry.parser.ParsersController.{BadPeer, RemoveBadPeer}
+import encry.settings.{BlackListSettings, ParseSettings}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class ParsersController(settings: ParseSettings,
                         blackListSettings: BlackListSettings,
-                        dbActor: ActorRef) extends Actor with StrictLogging {
+                        dbActor: ActorRef,
+                        networkServer: ActorRef) extends Actor with StrictLogging {
 
   var peerReconnects: Map[InetAddress, Int] = Map.empty[InetAddress, Int]
 
@@ -33,7 +34,7 @@ class ParsersController(settings: ParseSettings,
     context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
     logger.info(s"Starting Parsing controller. Try to create listeners for: ${settings.nodes.mkString(",")}")
     settings.nodes.foreach(node =>
-      context.actorOf(Props(new NodeParser(node, self, dbActor, settings)).withDispatcher("parser-dispatcher"))
+      context.actorOf(NodeParser.props(node, self, dbActor, settings))
     )
     val initialPeers: Set[InetAddress] = settings.nodes.map(_.getAddress).toSet
     logger.info(s"Initial peers are: ${initialPeers.mkString(",")}. Starting main behaviour...")
@@ -76,6 +77,9 @@ class ParsersController(settings: ParseSettings,
       peerReconnects --= peersForRemove.map(_._1)
       context.system.scheduler.scheduleOnce(blackListSettings.cleanupTime, self, RemoveBadPeer)
       context.become(mainBehaviour(knownPeers -- peersForRemove.map(_._1)))
+
+    case blockFromNode: BlockFromNode =>
+      networkServer ! blockFromNode
 
     case msg => logger.info(s"Got strange message on ParserController: $msg.")
   }

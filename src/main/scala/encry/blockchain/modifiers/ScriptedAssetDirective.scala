@@ -4,7 +4,6 @@ import com.google.common.primitives.Ints
 import io.circe.syntax._
 import encry.blockchain.modifiers.Directive.DTypeId
 import encry.blockchain.modifiers.boxes.{AssetBox, EncryBaseBox, EncryProposition}
-import encry.utils.CoreTaggedTypes.ModifierId
 import encry.utils.Utils
 import io.circe.{Decoder, Encoder, HCursor}
 import org.encryfoundation.common.utils.Algos
